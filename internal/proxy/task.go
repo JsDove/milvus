@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -1004,13 +1005,22 @@ func (t *alterCollectionTask) PreExecute(ctx context.Context) error {
 	t.CollectionID = collectionID
 
 	if len(t.GetProperties()) > 0 {
-		if hasMmapProp(t.Properties...) || hasLazyLoadProp(t.Properties...) {
+		hasMmap := hasMmapProp(t.Properties...)
+		hasLazyLoad := hasLazyLoadProp(t.Properties...)
+		if hasMmap || hasLazyLoad {
 			loaded, err := isCollectionLoaded(ctx, t.queryCoord, t.CollectionID)
 			if err != nil {
 				return err
 			}
 			if loaded {
-				return merr.WrapErrCollectionLoaded(t.CollectionName, "can not alter mmap properties if collection loaded")
+				var invalidProps []string
+				if hasMmapProp(t.Properties...) {
+					invalidProps = append(invalidProps, common.MmapEnabledKey)
+				}
+				if hasLazyLoadProp(t.Properties...) {
+					invalidProps = append(invalidProps, common.LazyLoadEnableKey)
+				}
+				return merr.WrapErrCollectionLoaded(t.CollectionName, "cannot alter %s properties when collection is loaded", strings.Join(invalidProps, " and "))
 			}
 		}
 	} else if len(t.GetDeleteKeys()) > 0 {
