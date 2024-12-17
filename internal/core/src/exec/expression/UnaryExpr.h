@@ -127,6 +127,41 @@ struct UnaryElementFunc {
     }
 };
 
+template <typename T>
+struct UnaryElementFuncForArrayMatch {
+    using IndexInnerType =
+        std::conditional_t<std::is_same_v<T, std::string_view>, std::string, T>;
+    void
+    operator()(const ArrayView* src,
+               const bool* valid_data,
+               size_t size,
+               IndexInnerType val,
+               int index,
+               TargetBitmapView res,
+               TargetBitmapView valid_res) {
+        PatternMatchTranslator translator;
+        auto regex_pattern = translator(val);
+        RegexMatcher matcher(regex_pattern);
+        for (int i = 0; i < size; ++i) {
+            if (valid_data != nullptr && !valid_data[i]) {
+                res[i] = valid_res[i] = false;
+                continue;
+            }
+            if constexpr (std::is_same_v<T, proto::plan::Array>) {
+                res[i] = false;
+            } else {
+                if (index >= src[i].length()) {
+                    res[i] = false;
+                    continue;
+                }
+                auto array_data =
+                    src[i].template get_data<IndexInnerType>(index);
+                res[i] = matcher(array_data);
+            }
+        }
+    }
+};
+
 #define UnaryArrayCompare(cmp)                                          \
     do {                                                                \
         if constexpr (std::is_same_v<GetType, proto::plan::Array>) {    \
@@ -154,62 +189,57 @@ struct UnaryElementFuncForArray {
                int index,
                TargetBitmapView res,
                TargetBitmapView valid_res) {
-        for (int i = 0; i < size; ++i) {
-            if (valid_data != nullptr && !valid_data[i]) {
-                res[i] = valid_res[i] = false;
-                continue;
-            }
-            if constexpr (op == proto::plan::OpType::Equal) {
-                if constexpr (std::is_same_v<GetType, proto::plan::Array>) {
-                    res[i] = src[i].is_same_array(val);
-                } else {
-                    if (index >= src[i].length()) {
-                        res[i] = false;
-                        continue;
-                    }
-                    auto array_data = src[i].template get_data<GetType>(index);
-                    res[i] = array_data == val;
+        if constexpr (op == proto::plan::OpType::Match) {
+            UnaryElementFuncForArrayMatch<GetType> func;
+            func(src, valid_data, size, val, index, res, valid_res);
+            return;
+        } else {
+            for (int i = 0; i < size; ++i) {
+                if (valid_data != nullptr && !valid_data[i]) {
+                    res[i] = valid_res[i] = false;
+                    continue;
                 }
-            } else if constexpr (op == proto::plan::OpType::NotEqual) {
-                if constexpr (std::is_same_v<GetType, proto::plan::Array>) {
-                    res[i] = !src[i].is_same_array(val);
-                } else {
-                    if (index >= src[i].length()) {
-                        res[i] = false;
-                        continue;
+                if constexpr (op == proto::plan::OpType::Equal) {
+                    if constexpr (std::is_same_v<GetType, proto::plan::Array>) {
+                        res[i] = src[i].is_same_array(val);
+                    } else {
+                        if (index >= src[i].length()) {
+                            res[i] = false;
+                            continue;
+                        }
+                        auto array_data =
+                            src[i].template get_data<GetType>(index);
+                        res[i] = array_data == val;
                     }
-                    auto array_data = src[i].template get_data<GetType>(index);
-                    res[i] = array_data != val;
-                }
-            } else if constexpr (op == proto::plan::OpType::GreaterThan) {
-                UnaryArrayCompare(array_data > val);
-            } else if constexpr (op == proto::plan::OpType::LessThan) {
-                UnaryArrayCompare(array_data < val);
-            } else if constexpr (op == proto::plan::OpType::GreaterEqual) {
-                UnaryArrayCompare(array_data >= val);
-            } else if constexpr (op == proto::plan::OpType::LessEqual) {
-                UnaryArrayCompare(array_data <= val);
-            } else if constexpr (op == proto::plan::OpType::PrefixMatch) {
-                UnaryArrayCompare(milvus::query::Match(array_data, val, op));
-            } else if constexpr (op == proto::plan::OpType::Match) {
-                if constexpr (std::is_same_v<GetType, proto::plan::Array>) {
-                    res[i] = false;
-                } else {
-                    if (index >= src[i].length()) {
-                        res[i] = false;
-                        continue;
+                } else if constexpr (op == proto::plan::OpType::NotEqual) {
+                    if constexpr (std::is_same_v<GetType, proto::plan::Array>) {
+                        res[i] = !src[i].is_same_array(val);
+                    } else {
+                        if (index >= src[i].length()) {
+                            res[i] = false;
+                            continue;
+                        }
+                        auto array_data =
+                            src[i].template get_data<GetType>(index);
+                        res[i] = array_data != val;
                     }
-                    PatternMatchTranslator translator;
-                    auto regex_pattern = translator(val);
-                    RegexMatcher matcher(regex_pattern);
-                    auto array_data = src[i].template get_data<GetType>(index);
-                    res[i] = matcher(array_data);
+                } else if constexpr (op == proto::plan::OpType::GreaterThan) {
+                    UnaryArrayCompare(array_data > val);
+                } else if constexpr (op == proto::plan::OpType::LessThan) {
+                    UnaryArrayCompare(array_data < val);
+                } else if constexpr (op == proto::plan::OpType::GreaterEqual) {
+                    UnaryArrayCompare(array_data >= val);
+                } else if constexpr (op == proto::plan::OpType::LessEqual) {
+                    UnaryArrayCompare(array_data <= val);
+                } else if constexpr (op == proto::plan::OpType::PrefixMatch) {
+                    UnaryArrayCompare(
+                        milvus::query::Match(array_data, val, op));
+                } else {
+                    PanicInfo(OpTypeInvalid,
+                              "unsupported op_type:{} for "
+                              "UnaryElementFuncForArray",
+                              op);
                 }
-            } else {
-                PanicInfo(OpTypeInvalid,
-                          "unsupported op_type:{} for "
-                          "UnaryElementFuncForArray",
-                          op);
             }
         }
     }
