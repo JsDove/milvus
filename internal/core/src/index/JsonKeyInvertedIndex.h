@@ -16,7 +16,6 @@
 
 #include "index/InvertedIndexTantivy.h"
 #include "common/jsmn.h"
-
 namespace milvus::index {
 
 using stdclock = std::chrono::high_resolution_clock;
@@ -50,23 +49,36 @@ class JsonKeyInvertedIndex : public InvertedIndexTantivy<std::string> {
     const TargetBitmap
     FilterByPath(const std::string& path,
                  int32_t row,
+                 bool is_growing,
                  std::function<bool(uint32_t, uint16_t, uint16_t)> filter) {
-        if (shouldTriggerCommit()) {
-            Commit();
-            Reload();
-        }
-        TargetBitmap bitset(row);
-        auto array = wrapper_->term_query<std::string>(path);
-        LOG_INFO("json key filter size:{}", array.array_.len);
-        for (size_t j = 0; j < array.array_.len; j++) {
-            auto the_offset = array.array_.array[j];
-            auto tuple = DecodeOffset(the_offset);
-            auto row_id = std::get<0>(tuple);
-            bitset[row_id] = filter(
-                std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple));
-        }
+        auto processArray = [this, &path, row, &filter]() {
+            TargetBitmap bitset(row);
+            auto array = wrapper_->term_query<std::string>(path);
+            LOG_INFO("json key filter size:{}", array.array_.len);
+            for (size_t j = 0; j < array.array_.len; j++) {
+                auto the_offset = array.array_.array[j];
+                auto tuple = DecodeOffset(the_offset);
+                auto row_id = std::get<0>(tuple);
+                bitset[row_id] = filter(
+                    std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple));
+            }
 
-        return std::move(bitset);
+            return std::move(bitset);
+        };
+
+        if (is_growing) {
+            if (shouldTriggerCommit()) {
+                std::unique_lock<std::mutex> lck(mtx_1);
+                Commit();
+                Reload();
+                return processArray();
+            } else {
+                std::shared_lock<std::shared_mutex> shared_lock(shared_mtx_);
+                return processArray();
+            }
+        } else {
+            return processArray();
+        }
     }
 
     void
@@ -125,6 +137,8 @@ class JsonKeyInvertedIndex : public InvertedIndexTantivy<std::string> {
  private:
     int64_t field_id_;
     mutable std::mutex mtx_;
+    mutable std::mutex mtx_1;
+    mutable std::shared_mutex shared_mtx_;
     std::atomic<stdclock::time_point> last_commit_time_;
     int64_t commit_interval_in_ms_;
 };
