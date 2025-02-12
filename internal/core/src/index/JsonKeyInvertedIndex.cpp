@@ -299,6 +299,7 @@ JsonKeyInvertedIndex::AddJSONDatas(size_t n,
     }
     LOG_INFO("build json key index done for AddJSONDatas");
     if (shouldTriggerCommit()) {
+        std::unique_lock<std::shared_mutex> lck(shared_mtx_);
         Commit();
     }
 }
