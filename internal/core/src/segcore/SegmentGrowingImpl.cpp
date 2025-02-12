@@ -972,8 +972,7 @@ SegmentGrowingImpl::GetJsonData(FieldId field_id, size_t offset) const {
     auto& field_meta = schema_->operator[](field_id);
     if (field_meta.is_nullable()) {
         auto valid_data_ptr = insert_record_.get_valid_data(field_id);
-        return {src.view_element(offset),
-                valid_data_ptr->is_valid(offset)};
+        return {src.view_element(offset), valid_data_ptr->is_valid(offset)};
     }
     return {src.view_element(offset), true};
 }

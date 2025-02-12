@@ -63,17 +63,17 @@ class JsonKeyInvertedIndex : public InvertedIndexTantivy<std::string> {
                     std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple));
             }
 
-            return std::move(bitset);
+            return bitset;
         };
 
         if (is_growing) {
             if (shouldTriggerCommit()) {
-                std::unique_lock<std::mutex> lck(mtx_1);
+                std::unique_lock<std::shared_mutex> lck(shared_mtx_);
                 Commit();
                 Reload();
                 return processArray();
             } else {
-                std::shared_lock<std::shared_mutex> shared_lock(shared_mtx_);
+                std::shared_lock<std::shared_mutex> lck(shared_mtx_);
                 return processArray();
             }
         } else {
@@ -137,7 +137,6 @@ class JsonKeyInvertedIndex : public InvertedIndexTantivy<std::string> {
  private:
     int64_t field_id_;
     mutable std::mutex mtx_;
-    mutable std::mutex mtx_1;
     mutable std::shared_mutex shared_mtx_;
     std::atomic<stdclock::time_point> last_commit_time_;
     int64_t commit_interval_in_ms_;
