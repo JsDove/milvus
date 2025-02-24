@@ -620,20 +620,24 @@ func (mt *MetaTable) getCollectionByNameInternal(ctx context.Context, dbName str
 
 	db, err := mt.getDatabaseByNameInternal(ctx, dbName, typeutil.MaxTimestamp)
 	if err != nil {
+		log.Warn("not found database", zap.String("collectionName", collectionName), zap.Uint64("ts", ts))
 		return nil, err
 	}
 
 	collectionID, ok := mt.aliases.get(dbName, collectionName)
 	if ok {
+		log.Info("get collection by alias", zap.Int64("collectionID", collectionID), zap.String("collectionName", collectionName), zap.Uint64("ts", ts))
 		return mt.getCollectionByIDInternal(ctx, dbName, collectionID, ts, false)
 	}
 
 	collectionID, ok = mt.names.get(dbName, collectionName)
 	if ok {
+		log.Info("get collection by name", zap.Int64("collectionID", collectionID), zap.String("collectionName", collectionName), zap.Uint64("ts", ts))
 		return mt.getCollectionByIDInternal(ctx, dbName, collectionID, ts, false)
 	}
 
 	if isMaxTs(ts) {
+		log.Warn("not found collection", zap.String("collectionName", collectionName), zap.Uint64("ts", ts))
 		return nil, merr.WrapErrCollectionNotFoundWithDB(dbName, collectionName)
 	}
 
