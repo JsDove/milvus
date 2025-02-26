@@ -1,5 +1,19 @@
 grammar Plan;
 
+outputFuncCallArgument:
+	Identifier #FuncCallIdentifier
+	| MUL #FuncCallMul
+	| IntegerConstant # FuncCallInteger
+	| FloatingConstant # FuncCallFloating
+	| BooleanConstant  # FuncCallBoolean
+	| StringLiteral # FuncCallString;
+
+outputField:
+	(Identifier) (AS Identifier)? #IdentifierOField
+	| Meta #MetaOField
+	| MUL #AllOField
+	| Identifier '(' ( outputFuncCallArgument (',' outputFuncCallArgument )* ','? )? ')' (AS Identifier)? #FuncCallOField;
+
 expr:
 	IntegerConstant											                     # Integer
 	| FloatingConstant										                     # Floating
@@ -111,6 +125,7 @@ Meta: '$meta';
 
 StringLiteral: EncodingPrefix? ('"' DoubleSCharSequence? '"' | '\'' SingleSCharSequence? '\'');
 JSONIdentifier: (Identifier | Meta)('[' (StringLiteral | DecimalConstant) ']')+;
+AS : [aA][sS];
 
 fragment EncodingPrefix: 'u8' | 'u' | 'U' | 'L';
 
