@@ -2598,8 +2598,8 @@ type queryNodeConfig struct {
 	// worker
 	WorkerPoolingSize ParamItem `refreshable:"false"`
 
-	// Json Key Index
-	JSONIndexCommitInterval ParamItem `refreshable:"false"`
+	// Json Key Stats
+	JSONKeyStatsCommitInterval ParamItem `refreshable:"false"`
 }
 
 func (p *queryNodeConfig) init(base *BaseTable) {
@@ -3292,14 +3292,14 @@ user-task-polling:
 	}
 	p.ExprEvalBatchSize.Init(base.mgr)
 
-	p.JSONIndexCommitInterval = ParamItem{
-		Key:          "queryNode.segcore.jsonIndexCommitInterval",
+	p.JSONKeyStatsCommitInterval = ParamItem{
+		Key:          "queryNode.segcore.jsonKeyStatsCommitInterval",
 		Version:      "2.5.0",
 		DefaultValue: "200",
-		Doc:          "the commit interval for the JSON index to commit",
+		Doc:          "the commit interval for the JSON key Stats to commit",
 		Export:       true,
 	}
-	p.JSONIndexCommitInterval.Init(base.mgr)
+	p.JSONKeyStatsCommitInterval.Init(base.mgr)
 
 	p.CleanExcludeSegInterval = ParamItem{
 		Key:          "queryCoord.cleanExcludeSegmentInterval",
@@ -3510,9 +3510,11 @@ type dataCoordConfig struct {
 	MixCompactionSlotUsage        ParamItem `refreshable:"true"`
 	L0DeleteCompactionSlotUsage   ParamItem `refreshable:"true"`
 
-	EnableStatsTask       ParamItem `refreshable:"true"`
-	TaskCheckInterval     ParamItem `refreshable:"true"`
-	StatsTaskTriggerCount ParamItem `refreshable:"true"`
+	EnableStatsTask          ParamItem `refreshable:"true"`
+	TaskCheckInterval        ParamItem `refreshable:"true"`
+	StatsTaskTriggerCount    ParamItem `refreshable:"true"`
+	JSONStatsTriggerCount    ParamItem `refreshable:"true"`
+	JSONStatsTriggerInterval ParamItem `refreshable:"true"`
 
 	RequestTimeoutSeconds             ParamItem `refreshable:"true"`
 	JSONKeyStatsMemoryBudgetInTantivy ParamItem `refreshable:"false"`
@@ -4408,6 +4410,26 @@ During compaction, the size of segment # of rows is able to exceed segment max #
 		Export:       false,
 	}
 	p.StatsTaskTriggerCount.Init(base.mgr)
+
+	p.JSONStatsTriggerCount = ParamItem{
+		Key:          "dataCoord.jsonStatsTriggerCount",
+		Version:      "2.5.5",
+		Doc:          "jsonkey stats task count per trigger",
+		DefaultValue: "10",
+		PanicIfEmpty: false,
+		Export:       true,
+	}
+	p.JSONStatsTriggerCount.Init(base.mgr)
+
+	p.JSONStatsTriggerInterval = ParamItem{
+		Key:          "dataCoord.jsonStatsTriggerInterval",
+		Version:      "2.5.5",
+		Doc:          "jsonkey task interval per trigger",
+		DefaultValue: "10",
+		PanicIfEmpty: false,
+		Export:       true,
+	}
+	p.JSONStatsTriggerInterval.Init(base.mgr)
 
 	p.RequestTimeoutSeconds = ParamItem{
 		Key:          "dataCoord.requestTimeoutSeconds",
