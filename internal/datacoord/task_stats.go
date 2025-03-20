@@ -245,7 +245,7 @@ func (st *statsTask) PreCheck(ctx context.Context, dependency *taskScheduler) bo
 		// update version after check
 		TaskVersion:               statsMeta.GetVersion() + 1,
 		BinlogMaxSize:             Params.DataNodeCfg.BinLogMaxSize.GetAsUint64(),
-		EnableJsonKeyStats:        Params.CommonCfg.EnabledJSONKeyStats.GetAsBool(),
+		EnableJsonKeyStats:        GetEnabledJSONKeyStats(collInfo.Properties),
 		JsonKeyStatsTantivyMemory: Params.DataCoordCfg.JSONKeyStatsMemoryBudgetInTantivy.GetAsInt64(),
 		JsonKeyStatsDataFormat:    1,
 		EnableJsonKeyStatsInSort:  Params.DataCoordCfg.EnabledJSONKeyStatsInSort.GetAsBool(),

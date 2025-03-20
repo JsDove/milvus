@@ -204,6 +204,7 @@ const (
 	IndexOffsetCacheEnabledKey = "indexoffsetcache.enabled"
 	ReplicateIDKey             = "replicate.id"
 	ReplicateEndTSKey          = "replicate.endTS"
+	JSONStatsEnabledKey        = "json.stats.enabled"
 )
 
 const (
@@ -447,4 +448,17 @@ func ValidateAutoIndexMmapConfig(autoIndexConfigEnable, isVectorField bool, inde
 		return fmt.Errorf("mmap index is not supported to config for the collection in auto index mode")
 	}
 	return nil
+}
+
+func IsJSONStatsEnabled(kvs map[string]string) (bool, bool) {
+	for key, value := range kvs {
+		if key == JSONStatsEnabledKey {
+			enable, err := strconv.ParseBool(value)
+			if err != nil {
+				return false, false
+			}
+			return enable, true
+		}
+	}
+	return false, false
 }

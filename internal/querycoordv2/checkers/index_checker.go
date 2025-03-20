@@ -33,7 +33,6 @@ import (
 	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
-	"github.com/milvus-io/milvus/pkg/v2/util/paramtable"
 	"github.com/milvus-io/milvus/pkg/v2/util/typeutil"
 )
 
@@ -241,27 +240,26 @@ func (c *IndexChecker) createSegmentUpdateTask(ctx context.Context, segment *met
 func (c *IndexChecker) checkSegmentStats(segment *meta.Segment, schema *schemapb.CollectionSchema, loadField []int64) (missFieldIDs []int64) {
 	var result []int64
 
-	if paramtable.Get().CommonCfg.EnabledJSONKeyStats.GetAsBool() {
-		loadFieldMap := make(map[int64]struct{})
-		for _, v := range loadField {
-			loadFieldMap[v] = struct{}{}
-		}
-		jsonStatsFieldMap := make(map[int64]struct{})
-		for _, v := range segment.JSONIndexField {
-			jsonStatsFieldMap[v] = struct{}{}
-		}
-		for _, field := range schema.GetFields() {
-			// Check if the field exists in both loadFieldMap and jsonStatsFieldMap
-			h := typeutil.CreateFieldSchemaHelper(field)
-			if h.EnableJSONKeyStatsIndex() {
-				if _, ok := loadFieldMap[field.FieldID]; ok {
-					if _, ok := jsonStatsFieldMap[field.FieldID]; !ok {
-						result = append(result, field.FieldID)
-					}
+	loadFieldMap := make(map[int64]struct{})
+	for _, v := range loadField {
+		loadFieldMap[v] = struct{}{}
+	}
+	jsonStatsFieldMap := make(map[int64]struct{})
+	for _, v := range segment.JSONIndexField {
+		jsonStatsFieldMap[v] = struct{}{}
+	}
+	for _, field := range schema.GetFields() {
+		// Check if the field exists in both loadFieldMap and jsonStatsFieldMap
+		h := typeutil.CreateFieldSchemaHelper(field)
+		if h.EnableJSONKeyStatsIndex() {
+			if _, ok := loadFieldMap[field.FieldID]; ok {
+				if _, ok := jsonStatsFieldMap[field.FieldID]; !ok {
+					result = append(result, field.FieldID)
 				}
 			}
 		}
 	}
+
 	return result
 }
 

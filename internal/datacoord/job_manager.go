@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/milvus-io/milvus/internal/datacoord/allocator"
+	"github.com/milvus-io/milvus/pkg/v2/common"
 	"github.com/milvus-io/milvus/pkg/v2/log"
 	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
@@ -197,15 +198,24 @@ func (jm *statsJobManager) triggerTextStatsTask() {
 	}
 }
 
+func GetEnabledJSONKeyStats(properties map[string]string) bool {
+	collectionJSONStatsEnabled, isExistJSONStatsEnabled := common.IsJSONStatsEnabled(properties)
+	if isExistJSONStatsEnabled {
+		return collectionJSONStatsEnabled
+	}
+	return Params.CommonCfg.EnabledJSONKeyStats.GetAsBool()
+}
+
 func (jm *statsJobManager) triggerJsonKeyIndexStatsTask(lastJSONStatsLastTrigger int64, maxJSONStatsTaskCount int) (int64, int) {
 	collections := jm.mt.GetCollections()
 	for _, collection := range collections {
 		needTriggerFieldIDs := make([]UniqueID, 0)
 		for _, field := range collection.Schema.GetFields() {
 			h := typeutil.CreateFieldSchemaHelper(field)
-			if h.EnableJSONKeyStatsIndex() && Params.CommonCfg.EnabledJSONKeyStats.GetAsBool() {
+			if GetEnabledJSONKeyStats(collection.Properties) && h.EnableJSONKeyStatsIndex() {
 				needTriggerFieldIDs = append(needTriggerFieldIDs, field.GetFieldID())
 			}
+
 		}
 		segments := jm.mt.SelectSegments(jm.ctx, WithCollection(collection.ID), SegmentFilterFunc(func(seg *SegmentInfo) bool {
 			return seg.GetIsSorted() && needDoJsonKeyIndex(seg, needTriggerFieldIDs)

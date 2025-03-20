@@ -357,8 +357,6 @@ func (suite *IndexCheckerSuite) TestCreateNewIndex() {
 func (suite *IndexCheckerSuite) TestLoadJsonIndex() {
 	checker := suite.checker
 	ctx := context.Background()
-	paramtable.Get().Save(paramtable.Get().CommonCfg.EnabledJSONKeyStats.Key, "true")
-	defer paramtable.Get().Reset(paramtable.Get().CommonCfg.EnabledJSONKeyStats.Key)
 	// meta
 	coll := utils.CreateTestCollection(1, 1)
 	coll.FieldIndexID = map[int64]int64{101: 1000}
@@ -445,8 +443,6 @@ func (suite *IndexCheckerSuite) TestLoadJsonIndex() {
 func (suite *IndexCheckerSuite) TestJsonIndexNotMatch() {
 	checker := suite.checker
 	ctx := context.Background()
-	paramtable.Get().Save(paramtable.Get().CommonCfg.EnabledJSONKeyStats.Key, "true")
-	defer paramtable.Get().Reset(paramtable.Get().CommonCfg.EnabledJSONKeyStats.Key)
 	// meta
 	coll := utils.CreateTestCollection(1, 1)
 	coll.FieldIndexID = map[int64]int64{101: 1000}
@@ -505,8 +501,6 @@ func (suite *IndexCheckerSuite) TestJsonIndexNotMatch() {
 func (suite *IndexCheckerSuite) TestCreateNewJsonIndex() {
 	checker := suite.checker
 	ctx := context.Background()
-	paramtable.Get().Save(paramtable.Get().CommonCfg.EnabledJSONKeyStats.Key, "true")
-	defer paramtable.Get().Reset(paramtable.Get().CommonCfg.EnabledJSONKeyStats.Key)
 	// meta
 	coll := utils.CreateTestCollection(1, 1)
 	coll.FieldIndexID = map[int64]int64{101: 1000}
