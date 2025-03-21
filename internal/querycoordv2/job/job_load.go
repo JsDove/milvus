@@ -206,6 +206,10 @@ func (job *LoadCollectionJob) Execute() error {
 	})
 
 	ctx, sp := otel.Tracer(typeutil.QueryCoordRole).Start(job.ctx, "LoadCollection", trace.WithNewRoot())
+	JsonFields := lo.FilterMap(collectionInfo.GetSchema().GetFields(), func(fieldSchema *schemapb.FieldSchema, _ int) (int64, bool) {
+		h := typeutil.CreateFieldSchemaHelper(fieldSchema)
+		return fieldSchema.GetFieldID(), h.EnableJSONKeyStatsIndex()
+	})
 	collection := &meta.Collection{
 		CollectionLoadInfo: &querypb.CollectionLoadInfo{
 			CollectionID:  req.GetCollectionID(),
@@ -215,10 +219,10 @@ func (job *LoadCollectionJob) Execute() error {
 			LoadType:      querypb.LoadType_LoadCollection,
 			LoadFields:    req.GetLoadFields(),
 			DbID:          collectionInfo.GetDbId(),
+			JsonFields:    JsonFields,
 		},
 		CreatedAt: time.Now(),
 		LoadSpan:  sp,
-		Schema:    collectionInfo.GetSchema(),
 	}
 	job.undo.IsNewCollection = true
 	err = job.meta.CollectionManager.PutCollection(job.ctx, collection, partitions...)
@@ -408,7 +412,10 @@ func (job *LoadPartitionJob) Execute() error {
 	ctx, sp := otel.Tracer(typeutil.QueryCoordRole).Start(job.ctx, "LoadPartition", trace.WithNewRoot())
 	if !job.meta.CollectionManager.Exist(job.ctx, req.GetCollectionID()) {
 		job.undo.IsNewCollection = true
-
+		JsonFields := lo.FilterMap(collectionInfo.GetSchema().GetFields(), func(fieldSchema *schemapb.FieldSchema, _ int) (int64, bool) {
+			h := typeutil.CreateFieldSchemaHelper(fieldSchema)
+			return fieldSchema.GetFieldID(), h.EnableJSONKeyStatsIndex()
+		})
 		collection := &meta.Collection{
 			CollectionLoadInfo: &querypb.CollectionLoadInfo{
 				CollectionID:  req.GetCollectionID(),
@@ -418,10 +425,10 @@ func (job *LoadPartitionJob) Execute() error {
 				LoadType:      querypb.LoadType_LoadPartition,
 				LoadFields:    req.GetLoadFields(),
 				DbID:          collectionInfo.GetDbId(),
+				JsonFields:    JsonFields,
 			},
 			CreatedAt: time.Now(),
 			LoadSpan:  sp,
-			Schema:    collectionInfo.GetSchema(),
 		}
 		err = job.meta.CollectionManager.PutCollection(job.ctx, collection, partitions...)
 		if err != nil {

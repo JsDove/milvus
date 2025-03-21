@@ -23,7 +23,6 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/zap"
 
-	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/internal/querycoordv2/meta"
 	"github.com/milvus-io/milvus/internal/querycoordv2/params"
 	"github.com/milvus-io/milvus/internal/querycoordv2/session"
@@ -92,21 +91,20 @@ func (c *IndexChecker) Check(ctx context.Context) []task.Task {
 		}
 
 		collection := c.meta.CollectionManager.GetCollection(ctx, collectionID)
-		schema := c.meta.CollectionManager.GetCollectionSchema(ctx, collectionID)
 		if collection == nil {
 			log.Warn("collection released during check index", zap.Int64("collection", collectionID))
 			continue
 		}
 		replicas := c.meta.ReplicaManager.GetByCollection(ctx, collectionID)
 		for _, replica := range replicas {
-			tasks = append(tasks, c.checkReplica(ctx, collection, replica, indexInfos, schema)...)
+			tasks = append(tasks, c.checkReplica(ctx, collection, replica, indexInfos)...)
 		}
 	}
 
 	return tasks
 }
 
-func (c *IndexChecker) checkReplica(ctx context.Context, collection *meta.Collection, replica *meta.Replica, indexInfos []*indexpb.IndexInfo, schema *schemapb.CollectionSchema) []task.Task {
+func (c *IndexChecker) checkReplica(ctx context.Context, collection *meta.Collection, replica *meta.Replica, indexInfos []*indexpb.IndexInfo) []task.Task {
 	log := log.Ctx(ctx).With(
 		zap.Int64("collectionID", collection.GetCollectionID()),
 	)
@@ -133,7 +131,7 @@ func (c *IndexChecker) checkReplica(ctx context.Context, collection *meta.Collec
 		}
 
 		missing := c.checkSegment(segment, indexInfos)
-		missingStats := c.checkSegmentStats(segment, schema, collection.LoadFields)
+		missingStats := c.checkSegmentStats(segment, collection.GetJsonFields(), collection.GetLoadFields())
 		if len(missing) > 0 {
 			targets[segment.GetID()] = missing
 			idSegments[segment.GetID()] = segment
@@ -234,11 +232,11 @@ func (c *IndexChecker) createSegmentUpdateTask(ctx context.Context, segment *met
 	return t, true
 }
 
-func (c *IndexChecker) checkSegmentStats(segment *meta.Segment, schema *schemapb.CollectionSchema, loadField []int64) (missFieldIDs []int64) {
+func (c *IndexChecker) checkSegmentStats(segment *meta.Segment, JSONField []int64, loadField []int64) (missFieldIDs []int64) {
 	var result []int64
 	if paramtable.Get().CommonCfg.EnabledJSONKeyStats.GetAsBool() {
-		if schema == nil {
-			log.Warn("schema released during check checkSegmentStats", zap.Int64("collection", segment.GetCollectionID()))
+		if len(JSONField) == 0 {
+			log.Warn("JSONField empty during check checkSegmentStats", zap.Int64("collection", segment.GetCollectionID()))
 			return result
 		}
 		loadFieldMap := make(map[int64]struct{})
@@ -249,14 +247,11 @@ func (c *IndexChecker) checkSegmentStats(segment *meta.Segment, schema *schemapb
 		for _, v := range segment.JSONIndexField {
 			jsonStatsFieldMap[v] = struct{}{}
 		}
-		for _, field := range schema.GetFields() {
+		for _, field := range JSONField {
 			// Check if the field exists in both loadFieldMap and jsonStatsFieldMap
-			h := typeutil.CreateFieldSchemaHelper(field)
-			if h.EnableJSONKeyStatsIndex() {
-				if _, ok := loadFieldMap[field.FieldID]; ok {
-					if _, ok := jsonStatsFieldMap[field.FieldID]; !ok {
-						result = append(result, field.FieldID)
-					}
+			if _, ok := loadFieldMap[field]; ok {
+				if _, ok := jsonStatsFieldMap[field]; !ok {
+					result = append(result, field)
 				}
 			}
 		}

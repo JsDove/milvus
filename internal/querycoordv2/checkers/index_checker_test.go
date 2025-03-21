@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	etcdkv "github.com/milvus-io/milvus/internal/kv/etcd"
 	"github.com/milvus-io/milvus/internal/metastore/kv/querycoord"
 	"github.com/milvus-io/milvus/internal/querycoordv2/meta"
@@ -98,12 +97,7 @@ func (suite *IndexCheckerSuite) TestLoadIndex() {
 	// meta
 	coll := utils.CreateTestCollection(1, 1)
 	coll.FieldIndexID = map[int64]int64{101: 1000}
-	coll.Schema = &schemapb.CollectionSchema{
-		Name: "test_loadJsonIndex",
-		Fields: []*schemapb.FieldSchema{
-			{FieldID: 101, DataType: schemapb.DataType_JSON, Name: "JSON"},
-		},
-	}
+	coll.JsonFields = []int64{101}
 	checker.meta.CollectionManager.PutCollection(ctx, coll)
 	checker.meta.ReplicaManager.Put(ctx, utils.CreateTestReplica(200, 1, []int64{1, 2}))
 	suite.nodeMgr.Add(session.NewNodeInfo(session.ImmutableNodeInfo{
@@ -171,12 +165,7 @@ func (suite *IndexCheckerSuite) TestIndexInfoNotMatch() {
 	// meta
 	coll := utils.CreateTestCollection(1, 1)
 	coll.FieldIndexID = map[int64]int64{101: 1000}
-	coll.Schema = &schemapb.CollectionSchema{
-		Name: "test_loadJsonIndex",
-		Fields: []*schemapb.FieldSchema{
-			{FieldID: 101, DataType: schemapb.DataType_JSON, Name: "JSON"},
-		},
-	}
+	coll.JsonFields = []int64{101}
 	checker.meta.CollectionManager.PutCollection(ctx, coll)
 	checker.meta.ReplicaManager.Put(ctx, utils.CreateTestReplica(200, 1, []int64{1, 2}))
 	suite.nodeMgr.Add(session.NewNodeInfo(session.ImmutableNodeInfo{
@@ -239,12 +228,7 @@ func (suite *IndexCheckerSuite) TestGetIndexInfoFailed() {
 	// meta
 	coll := utils.CreateTestCollection(1, 1)
 	coll.FieldIndexID = map[int64]int64{101: 1000}
-	coll.Schema = &schemapb.CollectionSchema{
-		Name: "test_loadJsonIndex",
-		Fields: []*schemapb.FieldSchema{
-			{FieldID: 101, DataType: schemapb.DataType_JSON, Name: "JSON"},
-		},
-	}
+	coll.JsonFields = []int64{101}
 	checker.meta.CollectionManager.PutCollection(ctx, coll)
 	checker.meta.ReplicaManager.Put(ctx, utils.CreateTestReplica(200, 1, []int64{1, 2}))
 	suite.nodeMgr.Add(session.NewNodeInfo(session.ImmutableNodeInfo{
@@ -286,12 +270,7 @@ func (suite *IndexCheckerSuite) TestCreateNewIndex() {
 	// meta
 	coll := utils.CreateTestCollection(1, 1)
 	coll.FieldIndexID = map[int64]int64{101: 1000}
-	coll.Schema = &schemapb.CollectionSchema{
-		Name: "test_loadJsonIndex",
-		Fields: []*schemapb.FieldSchema{
-			{FieldID: 101, DataType: schemapb.DataType_JSON, Name: "JSON"},
-		},
-	}
+	coll.JsonFields = []int64{101}
 	checker.meta.CollectionManager.PutCollection(ctx, coll)
 	checker.meta.ReplicaManager.Put(ctx, utils.CreateTestReplica(200, 1, []int64{1, 2}))
 	suite.nodeMgr.Add(session.NewNodeInfo(session.ImmutableNodeInfo{
@@ -362,12 +341,7 @@ func (suite *IndexCheckerSuite) TestLoadJsonIndex() {
 	// meta
 	coll := utils.CreateTestCollection(1, 1)
 	coll.FieldIndexID = map[int64]int64{101: 1000}
-	coll.Schema = &schemapb.CollectionSchema{
-		Name: "test_loadJsonIndex",
-		Fields: []*schemapb.FieldSchema{
-			{FieldID: 101, DataType: schemapb.DataType_JSON, Name: "JSON"},
-		},
-	}
+	coll.JsonFields = []int64{101}
 	coll.LoadFields = []int64{101}
 	checker.meta.CollectionManager.PutCollection(ctx, coll)
 	checker.meta.ReplicaManager.Put(ctx, utils.CreateTestReplica(200, 1, []int64{1, 2}))
@@ -450,12 +424,7 @@ func (suite *IndexCheckerSuite) TestJsonIndexNotMatch() {
 	// meta
 	coll := utils.CreateTestCollection(1, 1)
 	coll.FieldIndexID = map[int64]int64{101: 1000}
-	coll.Schema = &schemapb.CollectionSchema{
-		Name: "test_loadJsonIndex",
-		Fields: []*schemapb.FieldSchema{
-			{FieldID: 101, DataType: schemapb.DataType_JSON, Name: "JSON"},
-		},
-	}
+	coll.JsonFields = []int64{101}
 	checker.meta.CollectionManager.PutCollection(ctx, coll)
 	checker.meta.ReplicaManager.Put(ctx, utils.CreateTestReplica(200, 1, []int64{1, 2}))
 	suite.nodeMgr.Add(session.NewNodeInfo(session.ImmutableNodeInfo{
@@ -511,12 +480,7 @@ func (suite *IndexCheckerSuite) TestCreateNewJsonIndex() {
 	coll := utils.CreateTestCollection(1, 1)
 	coll.FieldIndexID = map[int64]int64{101: 1000}
 	coll.LoadFields = []int64{101}
-	coll.Schema = &schemapb.CollectionSchema{
-		Name: "test_loadJsonIndex",
-		Fields: []*schemapb.FieldSchema{
-			{FieldID: 101, DataType: schemapb.DataType_JSON, Name: "JSON"},
-		},
-	}
+	coll.JsonFields = []int64{101}
 	checker.meta.CollectionManager.PutCollection(ctx, coll)
 	checker.meta.ReplicaManager.Put(ctx, utils.CreateTestReplica(200, 1, []int64{1, 2}))
 	suite.nodeMgr.Add(session.NewNodeInfo(session.ImmutableNodeInfo{
