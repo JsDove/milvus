@@ -175,10 +175,10 @@ type createCollectionTask struct {
 	baseTask
 	Condition
 	*milvuspb.CreateCollectionRequest
-	ctx       context.Context
-	rootCoord types.RootCoordClient
-	result    *commonpb.Status
-	schema    *schemapb.CollectionSchema
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *commonpb.Status
+	schema   *schemapb.CollectionSchema
 }
 
 func (t *createCollectionTask) TraceCtx() context.Context {
@@ -445,7 +445,7 @@ func (t *createCollectionTask) PreExecute(ctx context.Context) error {
 
 func (t *createCollectionTask) Execute(ctx context.Context) error {
 	var err error
-	t.result, err = t.rootCoord.CreateCollection(ctx, t.CreateCollectionRequest)
+	t.result, err = t.mixCoord.CreateCollection(ctx, t.CreateCollectionRequest)
 	return merr.CheckRPCCall(t.result, err)
 }
 
@@ -457,11 +457,11 @@ type dropCollectionTask struct {
 	baseTask
 	Condition
 	*milvuspb.DropCollectionRequest
-	ctx       context.Context
-	rootCoord types.RootCoordClient
-	result    *commonpb.Status
-	chMgr     channelsMgr
-	chTicker  channelsTimeTicker
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *commonpb.Status
+	chMgr    channelsMgr
+	chTicker channelsTimeTicker
 }
 
 func (t *dropCollectionTask) TraceCtx() context.Context {
@@ -514,7 +514,7 @@ func (t *dropCollectionTask) PreExecute(ctx context.Context) error {
 
 func (t *dropCollectionTask) Execute(ctx context.Context) error {
 	var err error
-	t.result, err = t.rootCoord.DropCollection(ctx, t.DropCollectionRequest)
+	t.result, err = t.mixCoord.DropCollection(ctx, t.DropCollectionRequest)
 	return merr.CheckRPCCall(t.result, err)
 }
 
@@ -526,9 +526,9 @@ type hasCollectionTask struct {
 	baseTask
 	Condition
 	*milvuspb.HasCollectionRequest
-	ctx       context.Context
-	rootCoord types.RootCoordClient
-	result    *milvuspb.BoolResponse
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *milvuspb.BoolResponse
 }
 
 func (t *hasCollectionTask) TraceCtx() context.Context {
@@ -603,9 +603,9 @@ type describeCollectionTask struct {
 	baseTask
 	Condition
 	*milvuspb.DescribeCollectionRequest
-	ctx       context.Context
-	rootCoord types.RootCoordClient
-	result    *milvuspb.DescribeCollectionResponse
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *milvuspb.DescribeCollectionResponse
 }
 
 func (t *describeCollectionTask) TraceCtx() context.Context {
@@ -675,7 +675,7 @@ func (t *describeCollectionTask) Execute(ctx context.Context) error {
 		DbName:               t.GetDbName(),
 	}
 
-	result, err := t.rootCoord.DescribeCollection(ctx, t.DescribeCollectionRequest)
+	result, err := t.mixCoord.DescribeCollection(ctx, t.DescribeCollectionRequest)
 	if err != nil {
 		return err
 	}
@@ -750,10 +750,9 @@ type showCollectionsTask struct {
 	baseTask
 	Condition
 	*milvuspb.ShowCollectionsRequest
-	ctx        context.Context
-	rootCoord  types.RootCoordClient
-	queryCoord types.QueryCoordClient
-	result     *milvuspb.ShowCollectionsResponse
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *milvuspb.ShowCollectionsResponse
 }
 
 func (t *showCollectionsTask) TraceCtx() context.Context {
@@ -809,7 +808,7 @@ func (t *showCollectionsTask) PreExecute(ctx context.Context) error {
 
 func (t *showCollectionsTask) Execute(ctx context.Context) error {
 	ctx = AppendUserInfoForRPC(ctx)
-	respFromRootCoord, err := t.rootCoord.ShowCollections(ctx, t.ShowCollectionsRequest)
+	respFromRootCoord, err := t.mixCoord.ShowCollections(ctx, t.ShowCollectionsRequest)
 	if err = merr.CheckRPCCall(respFromRootCoord, err); err != nil {
 		return err
 	}
@@ -832,7 +831,7 @@ func (t *showCollectionsTask) Execute(ctx context.Context) error {
 			IDs2Names[collectionID] = collectionName
 		}
 
-		resp, err := t.queryCoord.ShowLoadCollections(ctx, &querypb.ShowCollectionsRequest{
+		resp, err := t.mixCoord.ShowLoadCollections(ctx, &querypb.ShowCollectionsRequest{
 			Base: commonpbutil.UpdateMsgBase(
 				t.Base,
 				commonpbutil.WithMsgType(commonpb.MsgType_ShowCollections),
@@ -903,11 +902,9 @@ type alterCollectionTask struct {
 	baseTask
 	Condition
 	*milvuspb.AlterCollectionRequest
-	ctx        context.Context
-	rootCoord  types.RootCoordClient
-	result     *commonpb.Status
-	queryCoord types.QueryCoordClient
-	dataCoord  types.DataCoordClient
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *commonpb.Status
 }
 
 func (t *alterCollectionTask) TraceCtx() context.Context {
@@ -1018,7 +1015,7 @@ func (t *alterCollectionTask) PreExecute(ctx context.Context) error {
 
 	if len(t.GetProperties()) > 0 {
 		if hasMmapProp(t.Properties...) || hasLazyLoadProp(t.Properties...) {
-			loaded, err := isCollectionLoaded(ctx, t.queryCoord, t.CollectionID)
+			loaded, err := isCollectionLoaded(ctx, t.mixCoord, t.CollectionID)
 			if err != nil {
 				return err
 			}
@@ -1029,7 +1026,7 @@ func (t *alterCollectionTask) PreExecute(ctx context.Context) error {
 	} else if len(t.GetDeleteKeys()) > 0 {
 		key := hasPropInDeletekeys(t.DeleteKeys)
 		if key != "" {
-			loaded, err := isCollectionLoaded(ctx, t.queryCoord, t.CollectionID)
+			loaded, err := isCollectionLoaded(ctx, t.mixCoord, t.CollectionID)
 			if err != nil {
 				return err
 			}
@@ -1074,7 +1071,7 @@ func (t *alterCollectionTask) PreExecute(ctx context.Context) error {
 
 		hasVecIndex := false
 		indexName := ""
-		indexResponse, err := t.dataCoord.DescribeIndex(ctx, &indexpb.DescribeIndexRequest{
+		indexResponse, err := t.mixCoord.DescribeIndex(ctx, &indexpb.DescribeIndexRequest{
 			CollectionID: t.CollectionID,
 			IndexName:    "",
 		})
@@ -1101,7 +1098,7 @@ func (t *alterCollectionTask) PreExecute(ctx context.Context) error {
 	}
 	endTS, ok := common.GetReplicateEndTS(t.Properties)
 	if ok && collBasicInfo.replicateID != "" {
-		allocResp, err := t.rootCoord.AllocTimestamp(ctx, &rootcoordpb.AllocTimestampRequest{
+		allocResp, err := t.mixCoord.AllocTimestamp(ctx, &rootcoordpb.AllocTimestampRequest{
 			Count:          1,
 			BlockTimestamp: endTS,
 		})
@@ -1119,7 +1116,7 @@ func (t *alterCollectionTask) PreExecute(ctx context.Context) error {
 
 func (t *alterCollectionTask) Execute(ctx context.Context) error {
 	var err error
-	t.result, err = t.rootCoord.AlterCollection(ctx, t.AlterCollectionRequest)
+	t.result, err = t.mixCoord.AlterCollection(ctx, t.AlterCollectionRequest)
 	return merr.CheckRPCCall(t.result, err)
 }
 
@@ -1131,11 +1128,9 @@ type alterCollectionFieldTask struct {
 	baseTask
 	Condition
 	*milvuspb.AlterCollectionFieldRequest
-	ctx        context.Context
-	rootCoord  types.RootCoordClient
-	result     *commonpb.Status
-	queryCoord types.QueryCoordClient
-	dataCoord  types.DataCoordClient
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *commonpb.Status
 }
 
 func (t *alterCollectionFieldTask) TraceCtx() context.Context {
@@ -1237,7 +1232,7 @@ func (t *alterCollectionFieldTask) PreExecute(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			loaded, err1 := isCollectionLoaded(ctx, t.queryCoord, collectionID)
+			loaded, err1 := isCollectionLoaded(ctx, t.mixCoord, collectionID)
 			if err1 != nil {
 				return err1
 			}
@@ -1276,7 +1271,7 @@ func (t *alterCollectionFieldTask) PreExecute(ctx context.Context) error {
 
 func (t *alterCollectionFieldTask) Execute(ctx context.Context) error {
 	var err error
-	t.result, err = t.rootCoord.AlterCollectionField(ctx, t.AlterCollectionFieldRequest)
+	t.result, err = t.mixCoord.AlterCollectionField(ctx, t.AlterCollectionFieldRequest)
 	return merr.CheckRPCCall(t.result, err)
 }
 
@@ -1288,10 +1283,9 @@ type createPartitionTask struct {
 	baseTask
 	Condition
 	*milvuspb.CreatePartitionRequest
-	ctx        context.Context
-	rootCoord  types.RootCoordClient
-	queryCoord types.QueryCoordClient
-	result     *commonpb.Status
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *commonpb.Status
 }
 
 func (t *createPartitionTask) TraceCtx() context.Context {
@@ -1358,7 +1352,7 @@ func (t *createPartitionTask) PreExecute(ctx context.Context) error {
 }
 
 func (t *createPartitionTask) Execute(ctx context.Context) (err error) {
-	t.result, err = t.rootCoord.CreatePartition(ctx, t.CreatePartitionRequest)
+	t.result, err = t.mixCoord.CreatePartition(ctx, t.CreatePartitionRequest)
 	if err := merr.CheckRPCCall(t.result, err); err != nil {
 		return err
 	}
@@ -1372,7 +1366,7 @@ func (t *createPartitionTask) Execute(ctx context.Context) (err error) {
 		t.result = merr.Status(err)
 		return err
 	}
-	t.result, err = t.queryCoord.SyncNewCreatedPartition(ctx, &querypb.SyncNewCreatedPartitionRequest{
+	t.result, err = t.mixCoord.SyncNewCreatedPartition(ctx, &querypb.SyncNewCreatedPartitionRequest{
 		Base:         commonpbutil.NewMsgBase(commonpbutil.WithMsgType(commonpb.MsgType_ReleasePartitions)),
 		CollectionID: collectionID,
 		PartitionID:  partitionID,
@@ -1388,10 +1382,9 @@ type dropPartitionTask struct {
 	baseTask
 	Condition
 	*milvuspb.DropPartitionRequest
-	ctx        context.Context
-	rootCoord  types.RootCoordClient
-	queryCoord types.QueryCoordClient
-	result     *commonpb.Status
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *commonpb.Status
 }
 
 func (t *dropPartitionTask) TraceCtx() context.Context {
@@ -1466,12 +1459,12 @@ func (t *dropPartitionTask) PreExecute(ctx context.Context) error {
 		return err
 	}
 
-	collLoaded, err := isCollectionLoaded(ctx, t.queryCoord, collID)
+	collLoaded, err := isCollectionLoaded(ctx, t.mixCoord, collID)
 	if err != nil {
 		return err
 	}
 	if collLoaded {
-		loaded, err := isPartitionLoaded(ctx, t.queryCoord, collID, partID)
+		loaded, err := isPartitionLoaded(ctx, t.mixCoord, collID, partID)
 		if err != nil {
 			return err
 		}
@@ -1484,7 +1477,7 @@ func (t *dropPartitionTask) PreExecute(ctx context.Context) error {
 }
 
 func (t *dropPartitionTask) Execute(ctx context.Context) (err error) {
-	t.result, err = t.rootCoord.DropPartition(ctx, t.DropPartitionRequest)
+	t.result, err = t.mixCoord.DropPartition(ctx, t.DropPartitionRequest)
 	return merr.CheckRPCCall(t.result, err)
 }
 
@@ -1496,9 +1489,9 @@ type hasPartitionTask struct {
 	baseTask
 	Condition
 	*milvuspb.HasPartitionRequest
-	ctx       context.Context
-	rootCoord types.RootCoordClient
-	result    *milvuspb.BoolResponse
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *milvuspb.BoolResponse
 }
 
 func (t *hasPartitionTask) TraceCtx() context.Context {
@@ -1556,7 +1549,7 @@ func (t *hasPartitionTask) PreExecute(ctx context.Context) error {
 }
 
 func (t *hasPartitionTask) Execute(ctx context.Context) (err error) {
-	t.result, err = t.rootCoord.HasPartition(ctx, t.HasPartitionRequest)
+	t.result, err = t.mixCoord.HasPartition(ctx, t.HasPartitionRequest)
 	return merr.CheckRPCCall(t.result, err)
 }
 
@@ -1568,10 +1561,9 @@ type showPartitionsTask struct {
 	baseTask
 	Condition
 	*milvuspb.ShowPartitionsRequest
-	ctx        context.Context
-	rootCoord  types.RootCoordClient
-	queryCoord types.QueryCoordClient
-	result     *milvuspb.ShowPartitionsResponse
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *milvuspb.ShowPartitionsResponse
 }
 
 func (t *showPartitionsTask) TraceCtx() context.Context {
@@ -1632,7 +1624,7 @@ func (t *showPartitionsTask) PreExecute(ctx context.Context) error {
 }
 
 func (t *showPartitionsTask) Execute(ctx context.Context) error {
-	respFromRootCoord, err := t.rootCoord.ShowPartitions(ctx, t.ShowPartitionsRequest)
+	respFromRootCoord, err := t.mixCoord.ShowPartitions(ctx, t.ShowPartitionsRequest)
 	if err = merr.CheckRPCCall(respFromRootCoord, err); err != nil {
 		return err
 	}
@@ -1661,7 +1653,7 @@ func (t *showPartitionsTask) Execute(ctx context.Context) error {
 			partitionIDs = append(partitionIDs, partitionID)
 			IDs2Names[partitionID] = partitionName
 		}
-		resp, err := t.queryCoord.ShowLoadPartitions(ctx, &querypb.ShowPartitionsRequest{
+		resp, err := t.mixCoord.ShowLoadPartitions(ctx, &querypb.ShowPartitionsRequest{
 			Base: commonpbutil.UpdateMsgBase(
 				t.Base,
 				commonpbutil.WithMsgType(commonpb.MsgType_ShowCollections),
@@ -1716,10 +1708,9 @@ type loadCollectionTask struct {
 	baseTask
 	Condition
 	*milvuspb.LoadCollectionRequest
-	ctx        context.Context
-	queryCoord types.QueryCoordClient
-	datacoord  types.DataCoordClient
-	result     *commonpb.Status
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *commonpb.Status
 
 	collectionID       UniqueID
 	replicateMsgStream msgstream.MsgStream
@@ -1803,7 +1794,7 @@ func (t *loadCollectionTask) Execute(ctx context.Context) (err error) {
 	}
 
 	// check index
-	indexResponse, err := t.datacoord.DescribeIndex(ctx, &indexpb.DescribeIndexRequest{
+	indexResponse, err := t.mixCoord.DescribeIndex(ctx, &indexpb.DescribeIndexRequest{
 		CollectionID: collID,
 		IndexName:    "",
 	})
@@ -1854,7 +1845,7 @@ func (t *loadCollectionTask) Execute(ctx context.Context) (err error) {
 	}
 	log.Debug("send LoadCollectionRequest to query coordinator",
 		zap.Any("schema", request.Schema))
-	t.result, err = t.queryCoord.LoadCollection(ctx, request)
+	t.result, err = t.mixCoord.LoadCollection(ctx, request)
 	if err = merr.CheckRPCCall(t.result, err); err != nil {
 		return fmt.Errorf("call query coordinator LoadCollection: %s", err)
 	}
@@ -1877,9 +1868,9 @@ type releaseCollectionTask struct {
 	baseTask
 	Condition
 	*milvuspb.ReleaseCollectionRequest
-	ctx        context.Context
-	queryCoord types.QueryCoordClient
-	result     *commonpb.Status
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *commonpb.Status
 
 	collectionID       UniqueID
 	replicateMsgStream msgstream.MsgStream
@@ -1951,7 +1942,7 @@ func (t *releaseCollectionTask) Execute(ctx context.Context) (err error) {
 		CollectionID: collID,
 	}
 
-	t.result, err = t.queryCoord.ReleaseCollection(ctx, request)
+	t.result, err = t.mixCoord.ReleaseCollection(ctx, request)
 	if err = merr.CheckRPCCall(t.result, err); err != nil {
 		return err
 	}
@@ -1968,10 +1959,9 @@ type loadPartitionsTask struct {
 	baseTask
 	Condition
 	*milvuspb.LoadPartitionsRequest
-	ctx        context.Context
-	queryCoord types.QueryCoordClient
-	datacoord  types.DataCoordClient
-	result     *commonpb.Status
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *commonpb.Status
 
 	collectionID       UniqueID
 	replicateMsgStream msgstream.MsgStream
@@ -2053,7 +2043,7 @@ func (t *loadPartitionsTask) Execute(ctx context.Context) error {
 		return err
 	}
 	// check index
-	indexResponse, err := t.datacoord.DescribeIndex(ctx, &indexpb.DescribeIndexRequest{
+	indexResponse, err := t.mixCoord.DescribeIndex(ctx, &indexpb.DescribeIndexRequest{
 		CollectionID: collID,
 		IndexName:    "",
 	})
@@ -2114,7 +2104,7 @@ func (t *loadPartitionsTask) Execute(ctx context.Context) error {
 		ResourceGroups: t.ResourceGroups,
 		LoadFields:     loadFields,
 	}
-	t.result, err = t.queryCoord.LoadPartitions(ctx, request)
+	t.result, err = t.mixCoord.LoadPartitions(ctx, request)
 	if err = merr.CheckRPCCall(t.result, err); err != nil {
 		return err
 	}
@@ -2131,9 +2121,9 @@ type releasePartitionsTask struct {
 	baseTask
 	Condition
 	*milvuspb.ReleasePartitionsRequest
-	ctx        context.Context
-	queryCoord types.QueryCoordClient
-	result     *commonpb.Status
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *commonpb.Status
 
 	collectionID       UniqueID
 	replicateMsgStream msgstream.MsgStream
@@ -2221,7 +2211,7 @@ func (t *releasePartitionsTask) Execute(ctx context.Context) (err error) {
 		CollectionID: collID,
 		PartitionIDs: partitionIDs,
 	}
-	t.result, err = t.queryCoord.ReleasePartitions(ctx, request)
+	t.result, err = t.mixCoord.ReleasePartitions(ctx, request)
 	if err = merr.CheckRPCCall(t.result, err); err != nil {
 		return err
 	}
@@ -2237,9 +2227,9 @@ type CreateResourceGroupTask struct {
 	baseTask
 	Condition
 	*milvuspb.CreateResourceGroupRequest
-	ctx        context.Context
-	queryCoord types.QueryCoordClient
-	result     *commonpb.Status
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *commonpb.Status
 }
 
 func (t *CreateResourceGroupTask) TraceCtx() context.Context {
@@ -2289,7 +2279,7 @@ func (t *CreateResourceGroupTask) PreExecute(ctx context.Context) error {
 
 func (t *CreateResourceGroupTask) Execute(ctx context.Context) error {
 	var err error
-	t.result, err = t.queryCoord.CreateResourceGroup(ctx, t.CreateResourceGroupRequest)
+	t.result, err = t.mixCoord.CreateResourceGroup(ctx, t.CreateResourceGroupRequest)
 	return merr.CheckRPCCall(t.result, err)
 }
 
@@ -2301,9 +2291,9 @@ type UpdateResourceGroupsTask struct {
 	baseTask
 	Condition
 	*milvuspb.UpdateResourceGroupsRequest
-	ctx        context.Context
-	queryCoord types.QueryCoordClient
-	result     *commonpb.Status
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *commonpb.Status
 }
 
 func (t *UpdateResourceGroupsTask) TraceCtx() context.Context {
@@ -2353,7 +2343,7 @@ func (t *UpdateResourceGroupsTask) PreExecute(ctx context.Context) error {
 
 func (t *UpdateResourceGroupsTask) Execute(ctx context.Context) error {
 	var err error
-	t.result, err = t.queryCoord.UpdateResourceGroups(ctx, &querypb.UpdateResourceGroupsRequest{
+	t.result, err = t.mixCoord.UpdateResourceGroups(ctx, &querypb.UpdateResourceGroupsRequest{
 		Base:           t.UpdateResourceGroupsRequest.GetBase(),
 		ResourceGroups: t.UpdateResourceGroupsRequest.GetResourceGroups(),
 	})
@@ -2368,9 +2358,9 @@ type DropResourceGroupTask struct {
 	baseTask
 	Condition
 	*milvuspb.DropResourceGroupRequest
-	ctx        context.Context
-	queryCoord types.QueryCoordClient
-	result     *commonpb.Status
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *commonpb.Status
 }
 
 func (t *DropResourceGroupTask) TraceCtx() context.Context {
@@ -2420,7 +2410,7 @@ func (t *DropResourceGroupTask) PreExecute(ctx context.Context) error {
 
 func (t *DropResourceGroupTask) Execute(ctx context.Context) error {
 	var err error
-	t.result, err = t.queryCoord.DropResourceGroup(ctx, t.DropResourceGroupRequest)
+	t.result, err = t.mixCoord.DropResourceGroup(ctx, t.DropResourceGroupRequest)
 	return merr.CheckRPCCall(t.result, err)
 }
 
@@ -2432,9 +2422,9 @@ type DescribeResourceGroupTask struct {
 	baseTask
 	Condition
 	*milvuspb.DescribeResourceGroupRequest
-	ctx        context.Context
-	queryCoord types.QueryCoordClient
-	result     *milvuspb.DescribeResourceGroupResponse
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *milvuspb.DescribeResourceGroupResponse
 }
 
 func (t *DescribeResourceGroupTask) TraceCtx() context.Context {
@@ -2484,7 +2474,7 @@ func (t *DescribeResourceGroupTask) PreExecute(ctx context.Context) error {
 
 func (t *DescribeResourceGroupTask) Execute(ctx context.Context) error {
 	var err error
-	resp, err := t.queryCoord.DescribeResourceGroup(ctx, &querypb.DescribeResourceGroupRequest{
+	resp, err := t.mixCoord.DescribeResourceGroup(ctx, &querypb.DescribeResourceGroupRequest{
 		ResourceGroup: t.ResourceGroup,
 	})
 	if err != nil {
@@ -2557,9 +2547,9 @@ type TransferNodeTask struct {
 	baseTask
 	Condition
 	*milvuspb.TransferNodeRequest
-	ctx        context.Context
-	queryCoord types.QueryCoordClient
-	result     *commonpb.Status
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *commonpb.Status
 }
 
 func (t *TransferNodeTask) TraceCtx() context.Context {
@@ -2609,7 +2599,7 @@ func (t *TransferNodeTask) PreExecute(ctx context.Context) error {
 
 func (t *TransferNodeTask) Execute(ctx context.Context) error {
 	var err error
-	t.result, err = t.queryCoord.TransferNode(ctx, t.TransferNodeRequest)
+	t.result, err = t.mixCoord.TransferNode(ctx, t.TransferNodeRequest)
 	return merr.CheckRPCCall(t.result, err)
 }
 
@@ -2621,9 +2611,9 @@ type TransferReplicaTask struct {
 	baseTask
 	Condition
 	*milvuspb.TransferReplicaRequest
-	ctx        context.Context
-	queryCoord types.QueryCoordClient
-	result     *commonpb.Status
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *commonpb.Status
 }
 
 func (t *TransferReplicaTask) TraceCtx() context.Context {
@@ -2677,7 +2667,7 @@ func (t *TransferReplicaTask) Execute(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	t.result, err = t.queryCoord.TransferReplica(ctx, &querypb.TransferReplicaRequest{
+	t.result, err = t.mixCoord.TransferReplica(ctx, &querypb.TransferReplicaRequest{
 		SourceResourceGroup: t.SourceResourceGroup,
 		TargetResourceGroup: t.TargetResourceGroup,
 		CollectionID:        collID,
@@ -2694,9 +2684,9 @@ type ListResourceGroupsTask struct {
 	baseTask
 	Condition
 	*milvuspb.ListResourceGroupsRequest
-	ctx        context.Context
-	queryCoord types.QueryCoordClient
-	result     *milvuspb.ListResourceGroupsResponse
+	ctx      context.Context
+	mixCoord types.MixCoordClient
+	result   *milvuspb.ListResourceGroupsResponse
 }
 
 func (t *ListResourceGroupsTask) TraceCtx() context.Context {
@@ -2746,7 +2736,7 @@ func (t *ListResourceGroupsTask) PreExecute(ctx context.Context) error {
 
 func (t *ListResourceGroupsTask) Execute(ctx context.Context) error {
 	var err error
-	t.result, err = t.queryCoord.ListResourceGroups(ctx, t.ListResourceGroupsRequest)
+	t.result, err = t.mixCoord.ListResourceGroups(ctx, t.ListResourceGroupsRequest)
 	return merr.CheckRPCCall(t.result, err)
 }
 
