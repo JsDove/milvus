@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/milvus-io/milvus/internal/mocks"
-	"github.com/milvus-io/milvus/internal/util/hookutil"
 	"github.com/milvus-io/milvus/pkg/v2/util"
 	"github.com/milvus-io/milvus/pkg/v2/util/crypto"
 	"github.com/milvus-io/milvus/pkg/v2/util/paramtable"
@@ -39,9 +37,9 @@ func TestValidAuth(t *testing.T) {
 	res = validAuth(ctx, []string{"xxx"})
 	assert.False(t, res)
 	// normal metadata
-	queryCoord := &mocks.MockMixCoordClient{}
+	mix := &MockMixCoordClientInterface{}
 	mgr := newShardClientMgr()
-	err := InitMetaCache(ctx, queryCoord, mgr)
+	err := InitMetaCache(ctx, mix, mgr)
 	assert.NoError(t, err)
 	res = validAuth(ctx, []string{crypto.Base64Encode("mockUser:mockPass")})
 	assert.True(t, res)
@@ -71,7 +69,7 @@ func TestAuthenticationInterceptor(t *testing.T) {
 	_, err := AuthenticationInterceptor(ctx)
 	assert.Error(t, err)
 	// mock metacache
-	queryCoord := &mocks.MockMixCoordClient{}
+	queryCoord := &MockMixCoordClientInterface{}
 	mgr := newShardClientMgr()
 	err = InitMetaCache(ctx, queryCoord, mgr)
 	assert.NoError(t, err)
