@@ -2069,8 +2069,7 @@ func (node *Proxy) CreateIndex(ctx context.Context, request *milvuspb.CreateInde
 		ctx:                ctx,
 		Condition:          NewTaskCondition(ctx),
 		req:                request,
-		rootCoord:          node.mixCoord,
-		datacoord:          node.mixCoord,
+		mixCoord:           node.mixCoord,
 		replicateMsgStream: node.replicateMsgStream,
 	}
 
