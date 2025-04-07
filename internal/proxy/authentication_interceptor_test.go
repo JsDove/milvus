@@ -6,12 +6,12 @@ import (
 	"testing"
 
 	"github.com/cockroachdb/errors"
-	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc/metadata"
-
+	"github.com/milvus-io/milvus/internal/util/hookutil"
 	"github.com/milvus-io/milvus/pkg/v2/util"
 	"github.com/milvus-io/milvus/pkg/v2/util/crypto"
 	"github.com/milvus-io/milvus/pkg/v2/util/paramtable"
+	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/metadata"
 )
 
 // validAuth validates the authentication
