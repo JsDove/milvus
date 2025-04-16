@@ -223,8 +223,19 @@ func parseQueryParams(queryParamsPair []*commonpb.KeyValuePair) (*queryParams, e
 	}, nil
 }
 
-func matchCountRule(outputs []string) bool {
-	return len(outputs) == 1 && strings.ToLower(strings.TrimSpace(outputs[0])) == "count(*)"
+func matchCountRule(outputs []string, schema *schemapb.CollectionSchema) bool {
+	if len(outputs) != 1 {
+		return false
+	}
+	schemaH, err := typeutil.CreateSchemaHelper(schema)
+	if err != nil {
+		return false
+	}
+	outputField, err := planparserv2.ParseOutputField(schemaH, outputs[0])
+	if err != nil {
+		return false
+	}
+	return outputField.GetExpr().GetCountExpr().GetAsterisk()
 }
 
 func createCntPlan(expr string, schemaHelper *typeutil.SchemaHelper, exprTemplateValues map[string]*schemapb.TemplateValue) (*planpb.PlanNode, error) {
@@ -253,7 +264,7 @@ func createCntPlan(expr string, schemaHelper *typeutil.SchemaHelper, exprTemplat
 func (t *queryTask) createPlan(ctx context.Context) error {
 	schema := t.schema
 
-	cntMatch := matchCountRule(t.request.GetOutputFields())
+	cntMatch := matchCountRule(t.request.GetOutputFields(), schema.CollectionSchema)
 	if cntMatch {
 		var err error
 		t.plan, err = createCntPlan(t.request.GetExpr(), schema.schemaHelper, t.request.GetExprTemplateValues())
