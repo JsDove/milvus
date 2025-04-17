@@ -1594,15 +1594,24 @@ func (v *ParserVisitor) VisitMetaOField(ctx *parser.MetaOFieldContext) interface
 		return err
 	}
 
+	columnInfo := &planpb.ColumnInfo{
+		FieldId:         field.FieldID,
+		DataType:        field.DataType,
+		IsPrimaryKey:    field.IsPrimaryKey,
+		IsAutoID:        field.AutoID,
+		IsPartitionKey:  field.IsPartitionKey,
+		IsClusteringKey: field.IsClusteringKey,
+		ElementType:     field.GetElementType(),
+		Nullable:        field.GetNullable(),
+		NestedPath:      nil,
+	}
+
 	return &planpb.OutputFieldNode{
 		Target: &planpb.OutputFieldNode_Expr{
 			Expr: &planpb.OutputFieldExpr{
 				Expr: &planpb.OutputFieldExpr_ColumnExpr{
 					ColumnExpr: &planpb.ColumnExpr{
-						Info: &planpb.ColumnInfo{
-							FieldId:  field.FieldID,
-							DataType: field.DataType,
-						},
+						Info: columnInfo,
 					},
 				},
 			},
