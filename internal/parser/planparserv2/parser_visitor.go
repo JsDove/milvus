@@ -1565,8 +1565,8 @@ func (v *ParserVisitor) VisitFuncCallString(ctx *parser.FuncCallStringContext) i
 }
 
 func (v *ParserVisitor) VisitIdentifierOField(ctx *parser.IdentifierOFieldContext) interface{} {
-	fieldName := ctx.Identifier(0).GetText()
-	field, err := v.schema.GetFieldFromNameDefaultJSON(fieldName)
+	identifier := ctx.Identifier(0).GetText()
+	expr, err := v.translateIdentifier(identifier)
 	if err != nil {
 		return err
 	}
@@ -1580,12 +1580,7 @@ func (v *ParserVisitor) VisitIdentifierOField(ctx *parser.IdentifierOFieldContex
 		Target: &planpb.OutputFieldNode_Expr{
 			Expr: &planpb.OutputFieldExpr{
 				Expr: &planpb.OutputFieldExpr_ColumnExpr{
-					ColumnExpr: &planpb.ColumnExpr{
-						Info: &planpb.ColumnInfo{
-							FieldId:  field.FieldID,
-							DataType: field.DataType,
-						},
-					},
+					ColumnExpr: expr.expr.GetColumnExpr(),
 				},
 			},
 		},

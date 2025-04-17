@@ -1340,7 +1340,18 @@ func translateOutputFields(outputFields []string, schema *schemaInfo, removePkFi
 		if outputFieldName == primaryFieldName {
 			userRequestedPkFieldExplicitly = true
 		}
-		if outputFieldName == "*" {
+		schemaH, err := typeutil.CreateSchemaHelper(schema.CollectionSchema)
+		if err != nil {
+			return nil, nil, nil, false, err
+		}
+
+		outputFieldNameNode, err := planparserv2.ParseOutputField(schemaH, outputFieldName)
+		if err != nil {
+			log.Info("parse output field name failed", zap.String("field name", outputFieldName))
+			return nil, nil, nil, false, fmt.Errorf("parse output field name failed: %s", outputFieldName)
+		}
+
+		if outputFieldNameNode.GetSelectAll() {
 			userRequestedPkFieldExplicitly = true
 			for fieldName, field := range allFieldNameMap {
 				// skip Cold field and fields that can't be output
@@ -1364,22 +1375,8 @@ func translateOutputFields(outputFields []string, schema *schemaInfo, removePkFi
 			} else {
 				if schema.EnableDynamicField {
 					if schema.IsFieldLoaded(dynamicField.GetFieldID()) {
-						schemaH, err := typeutil.CreateSchemaHelper(schema.CollectionSchema)
-						if err != nil {
-							return nil, nil, nil, false, err
-						}
-						//err = planparserv2.Parse(schemaH, outputFieldName, func(expr *planpb.Expr) error {
-						//
-						//}
-						err = planparserv2.ParseIdentifier(schemaH, outputFieldName, func(expr *planpb.Expr) error {
-							if len(expr.GetColumnExpr().GetInfo().GetNestedPath()) == 1 &&
-								expr.GetColumnExpr().GetInfo().GetNestedPath()[0] == outputFieldName {
-								return nil
-							}
-							return fmt.Errorf("not support getting subkeys of json field yet")
-						})
-						if err != nil {
-							log.Info("parse output field name failed", zap.String("field name", outputFieldName))
+						if !(len(outputFieldNameNode.GetExpr().GetColumnExpr().GetInfo().GetNestedPath()) == 1 &&
+							outputFieldNameNode.GetExpr().GetColumnExpr().GetInfo().GetNestedPath()[0] == outputFieldName) {
 							return nil, nil, nil, false, fmt.Errorf("parse output field name failed: %s", outputFieldName)
 						}
 						resultFieldNameMap[common.MetaFieldName] = true
