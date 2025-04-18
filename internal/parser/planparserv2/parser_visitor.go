@@ -9,6 +9,7 @@ import (
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	parser "github.com/milvus-io/milvus/internal/parser/planparserv2/generated"
+	"github.com/milvus-io/milvus/pkg/v2/common"
 	"github.com/milvus-io/milvus/pkg/v2/proto/planpb"
 	"github.com/milvus-io/milvus/pkg/v2/util/typeutil"
 )
@@ -1571,7 +1572,7 @@ func (v *ParserVisitor) VisitIdentifierOField(ctx *parser.IdentifierOFieldContex
 		return err
 	}
 
-	alias := ""
+	alias := identifier
 	if len(ctx.AllIdentifier()) > 1 {
 		alias = ctx.Identifier(1).GetText()
 	}
@@ -1589,7 +1590,7 @@ func (v *ParserVisitor) VisitIdentifierOField(ctx *parser.IdentifierOFieldContex
 }
 
 func (v *ParserVisitor) VisitMetaOField(ctx *parser.MetaOFieldContext) interface{} {
-	field, err := v.schema.GetFieldFromNameDefaultJSON("$meta")
+	field, err := v.schema.GetFieldFromNameDefaultJSON(common.MetaFieldName)
 	if err != nil {
 		return err
 	}
@@ -1616,6 +1617,7 @@ func (v *ParserVisitor) VisitMetaOField(ctx *parser.MetaOFieldContext) interface
 				},
 			},
 		},
+		Alias: common.MetaFieldName,
 	}
 }
 
@@ -1637,6 +1639,8 @@ func (v *ParserVisitor) VisitFuncCallOField(ctx *parser.FuncCallOFieldContext) i
 		if len(ctx.AllIdentifier()) > 1 {
 			alias = ctx.Identifier(1).GetText()
 		}
+	} else {
+		alias = ctx.GetText()
 	}
 
 	switch strings.ToUpper(funcName) {
@@ -1707,7 +1711,7 @@ func (v *ParserVisitor) VisitFuncCallOField(ctx *parser.FuncCallOFieldContext) i
 						Expr: &planpb.OutputFieldExpr_ScoreExpr{
 							ScoreExpr: &planpb.ScoreExpr{
 								FieldId: field.FieldID,
-								Name:    fmt.Sprintf("score(%d)", field.FieldID),
+								Name:    alias,
 							},
 						},
 					},
@@ -1728,7 +1732,7 @@ func (v *ParserVisitor) VisitFuncCallOField(ctx *parser.FuncCallOFieldContext) i
 						Expr: &planpb.OutputFieldExpr_DistanceExpr{
 							DistanceExpr: &planpb.DistanceExpr{
 								FieldId: field.FieldID,
-								Name:    fmt.Sprintf("distance(%d)", field.FieldID),
+								Name:    alias,
 							},
 						},
 					},
