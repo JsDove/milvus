@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	sio "io"
+	"runtime"
 	"runtime/debug"
 	"sort"
 	"strconv"
@@ -326,6 +327,7 @@ func (st *statsTask) sortSegment(ctx context.Context) ([]*datapb.FieldBinlog, er
 
 	writer = nil
 	values = nil
+	runtime.GC()
 	debug.FreeOSMemory()
 	return insertLogs, nil
 }
