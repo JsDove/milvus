@@ -52,7 +52,7 @@ JsonKeyStatsInvertedIndex::AddJSONEncodeValue(
         combine_id = EncodeOffset(flag, type, row_id, offset, length);
     }
 
-    mp[key].push_back(combine_id);
+    wrapper_->add_multi_data<std::string>(&key, 1, combine_id);
 }
 
 void
