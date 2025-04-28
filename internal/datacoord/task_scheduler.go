@@ -176,7 +176,11 @@ func (s *taskScheduler) reloadFromMeta() {
 		segment := s.meta.GetHealthySegment(s.ctx, t.GetSegmentID())
 		taskSlot := int64(0)
 		if segment != nil {
-			taskSlot = calculateStatsTaskSlot(segment.getSegmentSize())
+			segmentSize := segment.getSegmentSize()
+			if t.GetSubJobType() == indexpb.StatsSubJob_JsonKeyIndexJob {
+				segmentSize = segmentSize * 2
+			}
+			taskSlot = calculateStatsTaskSlot(segmentSize)
 		}
 		task := &statsTask{
 			taskID:          taskID,
