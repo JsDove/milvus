@@ -627,35 +627,29 @@ PhyTermFilterExpr::ExecJsonInVariableByKeyIndex() {
                 }
                 auto json = milvus::Json(json_pair.first.data(),
                                          json_pair.first.size());
-                if (type == uint8_t(milvus::index::JSONType::STRING) ||
-                    type == uint8_t(milvus::index::JSONType::DOUBLE) ||
-                    type == uint8_t(milvus::index::JSONType::INT64)) {
+
+                if constexpr (std::is_same_v<GetType, std::string_view>) {
                     if (type == uint8_t(milvus::index::JSONType::STRING)) {
-                        if constexpr (std::is_same_v<GetType,
-                                                     std::string_view>) {
-                            auto val = json.at_string(offset, size);
-                            return this->arg_set_->In(ValueType(val));
-                        } else {
-                            return false;
-                        }
-                    } else if (type ==
-                               uint8_t(milvus::index::JSONType::DOUBLE)) {
-                        if constexpr (std::is_same_v<GetType, double>) {
-                            auto val = std::stod(
-                                std::string(json.at_string(offset, size)));
-                            return this->arg_set_->In(ValueType(val));
-                        } else {
-                            return false;
-                        }
-                    } else if (type ==
-                               uint8_t(milvus::index::JSONType::INT64)) {
-                        if constexpr (std::is_same_v<GetType, int64_t>) {
-                            auto val = std::stoll(
-                                std::string(json.at_string(offset, size)));
-                            return this->arg_set_->In(ValueType(val));
-                        } else {
-                            return false;
-                        }
+                        auto val = json.at_string(offset, size);
+                        return this->arg_set_->In(ValueType(val));
+                    } else {
+                        return false;
+                    }
+                } else if constexpr (std::is_same_v<GetType, double>) {
+                    if (type == uint8_t(milvus::index::JSONType::DOUBLE)) {
+                        auto val = std::stod(
+                            std::string(json.at_string(offset, size)));
+                        return this->arg_set_->In(ValueType(val));
+                    } else {
+                        return false;
+                    }
+                } else if constexpr (std::is_same_v<GetType, int64_t>) {
+                    if (type == uint8_t(milvus::index::JSONType::INT64)) {
+                        auto val = std::stoll(
+                            std::string(json.at_string(offset, size)));
+                        return this->arg_set_->In(ValueType(val));
+                    } else {
+                        return false;
                     }
                 } else {
                     auto val = json.at<GetType>(offset, size);
