@@ -435,6 +435,66 @@ BuildTextIndex(ProtoLayoutInterface result,
 }
 
 CStatus
+BuildPrimaryIndex(ProtoLayoutInterface c_binary_set,
+                  const uint8_t* serialized_build_index_info,
+                  const uint64_t len) {
+    try {
+        auto build_index_info =
+            std::make_unique<milvus::proto::indexcgo::BuildIndexInfo>();
+        auto res =
+            build_index_info->ParseFromArray(serialized_build_index_info, len);
+        AssertInfo(res, "Unmarshal build index info failed");
+
+        auto field_type =
+            static_cast<DataType>(build_index_info->field_schema().data_type());
+
+        auto storage_config =
+            get_storage_config(build_index_info->storage_config());
+        auto config = get_config(build_index_info);
+
+        // init file manager
+        milvus::storage::FieldDataMeta field_meta{
+            build_index_info->collectionid(),
+            build_index_info->partitionid(),
+            build_index_info->segmentid(),
+            build_index_info->field_schema().fieldid(),
+            build_index_info->field_schema()};
+
+        milvus::storage::IndexMeta index_meta{
+            build_index_info->segmentid(),
+            build_index_info->field_schema().fieldid(),
+            build_index_info->buildid(),
+            build_index_info->index_version(),
+            "",
+            build_index_info->field_schema().name(),
+            field_type,
+            build_index_info->dim(),
+        };
+        auto chunk_manager =
+            milvus::storage::CreateChunkManager(storage_config);
+
+        milvus::storage::FileManagerContext fileManagerContext(
+            field_meta, index_meta, chunk_manager);
+
+        auto status = CStatus();
+        status.error_code = Success;
+        status.error_msg = "";
+        return status;
+    } catch (SegcoreError& e) {
+        auto status = CStatus();
+        status.error_code = e.get_error_code();
+        status.error_msg = strdup(e.what());
+        return status;
+    } catch (std::exception& e) {
+        auto status = CStatus();
+        status.error_code = UnexpectedError;
+        status.error_msg = strdup(e.what());
+        return status;
+    }
+}
+
+
+CStatus
 DeleteIndex(CIndex index) {
     SCOPE_CGO_CALL_METRIC();
 
