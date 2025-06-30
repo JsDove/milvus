@@ -168,7 +168,7 @@ const (
 	CollectionTTLConfigKey      = "collection.ttl.seconds"
 	CollectionAutoCompactionKey = "collection.autocompaction.enabled"
 	CollectionDescription       = "collection.description"
-
+	CollectionJsonStatsEnabled  = "collection.JsonStats.enabled"
 	// rate limit
 	CollectionInsertRateMaxKey   = "collection.insertRate.max.mb"
 	CollectionInsertRateMinKey   = "collection.insertRate.min.mb"

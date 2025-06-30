@@ -32,7 +32,6 @@ import (
 	"github.com/milvus-io/milvus/pkg/v2/log"
 	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
-	"github.com/milvus-io/milvus/pkg/v2/util/paramtable"
 	"github.com/milvus-io/milvus/pkg/v2/util/typeutil"
 )
 
@@ -91,21 +90,14 @@ func (c *IndexChecker) Check(ctx context.Context) []task.Task {
 		}
 
 		collection := c.meta.CollectionManager.GetCollection(ctx, collectionID)
-		schema := c.meta.CollectionManager.GetCollectionSchema(ctx, collectionID)
 		if collection == nil {
 			log.Warn("collection released during check index", zap.Int64("collection", collectionID))
 			continue
 		}
-		if schema == nil && paramtable.Get().CommonCfg.EnabledJSONKeyStats.GetAsBool() {
-			collectionSchema, err1 := c.broker.DescribeCollection(ctx, collectionID)
-			if err1 == nil {
-				schema = collectionSchema.GetSchema()
-				c.meta.PutCollectionSchema(ctx, collectionID, collectionSchema.GetSchema())
-			}
-		}
+		collectionSchema, _ := c.broker.DescribeCollection(ctx, collectionID)
 		replicas := c.meta.ReplicaManager.GetByCollection(ctx, collectionID)
 		for _, replica := range replicas {
-			tasks = append(tasks, c.checkReplica(ctx, collection, replica, indexInfos, schema)...)
+			tasks = append(tasks, c.checkReplica(ctx, collection, replica, indexInfos, collectionSchema.GetSchema())...)
 		}
 	}
 
@@ -237,12 +229,11 @@ func (c *IndexChecker) createSegmentUpdateTask(ctx context.Context, segment *met
 
 func (c *IndexChecker) checkSegmentStats(segment *meta.Segment, schema *schemapb.CollectionSchema, loadField []int64) (missFieldIDs []int64) {
 	var result []int64
-
-	if paramtable.Get().CommonCfg.EnabledJSONKeyStats.GetAsBool() {
-		if schema == nil {
-			log.Warn("schema released during check index", zap.Int64("collection", segment.GetCollectionID()))
-			return result
-		}
+	if schema == nil {
+		log.Warn("schema released during check index", zap.Int64("collection", segment.GetCollectionID()))
+		return result
+	}
+	if utils.GetCollectionJsonStatsEnabled(schema.GetProperties()) {
 		loadFieldMap := make(map[int64]struct{})
 		for _, v := range loadField {
 			loadFieldMap[v] = struct{}{}

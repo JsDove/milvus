@@ -19,12 +19,15 @@ package utils
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"go.uber.org/zap"
 
+	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus/internal/querycoordv2/meta"
 	"github.com/milvus-io/milvus/internal/querycoordv2/session"
+	"github.com/milvus-io/milvus/pkg/v2/common"
 	"github.com/milvus-io/milvus/pkg/v2/log"
 	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
 	"github.com/milvus-io/milvus/pkg/v2/util/merr"
@@ -248,4 +251,17 @@ func filterDupLeaders(ctx context.Context, replicaManager *meta.ReplicaManager, 
 		result[v.ID] = v
 	}
 	return result
+}
+
+func GetCollectionJsonStatsEnabled(pairs []*commonpb.KeyValuePair) bool {
+	for _, pair := range pairs {
+		if pair.Key == common.CollectionJsonStatsEnabled {
+			enable, err := strconv.ParseBool(pair.Value)
+			if err == nil {
+				return enable
+			}
+		}
+	}
+
+	return paramtable.Get().CommonCfg.EnabledJSONKeyStats.GetAsBool()
 }

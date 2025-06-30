@@ -151,6 +151,18 @@ func getCollectionTTL(properties map[string]string) (time.Duration, error) {
 	return Params.CommonCfg.EntityExpirationTTL.GetAsDuration(time.Second), nil
 }
 
+func getCollectionJsonStatsEnabled(properties map[string]string) bool {
+	v, ok := properties[common.CollectionJsonStatsEnabled]
+	if ok {
+		enable, err := strconv.ParseBool(v)
+		if err == nil {
+			return enable
+		}
+	}
+
+	return Params.CommonCfg.EnabledJSONKeyStats.GetAsBool()
+}
+
 func UpdateCompactionSegmentSizeMetrics(segments []*datapb.CompactionSegment) {
 	var totalSize int64
 	for _, seg := range segments {

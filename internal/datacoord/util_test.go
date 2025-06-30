@@ -169,6 +169,26 @@ func (suite *UtilSuite) TestGetCollectionTTL() {
 	suite.Equal(ttl, Params.CommonCfg.EntityExpirationTTL.GetAsDuration(time.Second))
 }
 
+func (suite *UtilSuite) TestGetCollectionJsonStatsEnabled() {
+	properties1 := map[string]string{
+		common.CollectionJsonStatsEnabled: "true",
+	}
+
+	// get ttl from configuration file
+	jsonStatsEnabled := getCollectionJsonStatsEnabled(properties1)
+	suite.Equal(jsonStatsEnabled, true)
+
+	properties2 := map[string]string{
+		common.CollectionJsonStatsEnabled: "false",
+	}
+	// test for parsing configuration failed
+	jsonStatsEnabled = getCollectionJsonStatsEnabled(properties2)
+	suite.Equal(jsonStatsEnabled, false)
+
+	jsonStatsEnabled = getCollectionJsonStatsEnabled(map[string]string{})
+	suite.Equal(jsonStatsEnabled, Params.CommonCfg.EnabledJSONKeyStats.GetAsBool())
+}
+
 func (suite *UtilSuite) TestGetCollectionAutoCompactionEnabled() {
 	properties := map[string]string{
 		common.CollectionAutoCompactionKey: "true",

@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/milvus-io/milvus-proto/go-api/v2/milvuspb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	etcdkv "github.com/milvus-io/milvus/internal/kv/etcd"
 	"github.com/milvus-io/milvus/internal/metastore/kv/querycoord"
@@ -37,6 +38,7 @@ import (
 	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/querypb"
 	"github.com/milvus-io/milvus/pkg/v2/util/etcd"
+	"github.com/milvus-io/milvus/pkg/v2/util/merr"
 	"github.com/milvus-io/milvus/pkg/v2/util/paramtable"
 )
 
@@ -123,6 +125,7 @@ func (suite *IndexCheckerSuite) TestLoadIndex() {
 	checker.dist.SegmentDistManager.Update(1, utils.CreateTestSegment(1, 1, 2, 1, 1, "test-insert-channel"))
 
 	// broker
+	suite.broker.EXPECT().DescribeCollection(mock.Anything, mock.Anything).Return(nil, nil)
 	suite.broker.EXPECT().GetIndexInfo(mock.Anything, int64(1), int64(2)).
 		Return(map[int64][]*querypb.FieldIndexInfo{2: {
 			{
@@ -197,6 +200,17 @@ func (suite *IndexCheckerSuite) TestIndexInfoNotMatch() {
 	checker.dist.SegmentDistManager.Update(1, utils.CreateTestSegment(1, 1, 3, 1, 1, "test-insert-channel"))
 
 	// broker
+	suite.broker.EXPECT().DescribeCollection(mock.Anything, mock.Anything).Return(&milvuspb.DescribeCollectionResponse{
+		Status: merr.Success(),
+		Schema: &schemapb.CollectionSchema{
+			Name: "test_loadJsonIndex",
+			Fields: []*schemapb.FieldSchema{
+				{FieldID: 101, DataType: schemapb.DataType_JSON, Name: "JSON"},
+			},
+		},
+		CollectionID:   1000,
+		CollectionName: "test_collection",
+	}, nil).Once()
 	suite.broker.EXPECT().GetIndexInfo(mock.Anything, int64(1), mock.AnythingOfType("int64")).
 		RunAndReturn(func(ctx context.Context, collectionID int64, segmentIDs ...int64) (map[int64][]*querypb.FieldIndexInfo, error) {
 			if segmentIDs[0] == 2 {
@@ -265,6 +279,17 @@ func (suite *IndexCheckerSuite) TestGetIndexInfoFailed() {
 	checker.dist.SegmentDistManager.Update(1, utils.CreateTestSegment(1, 1, 3, 1, 1, "test-insert-channel"))
 
 	// broker
+	suite.broker.EXPECT().DescribeCollection(mock.Anything, mock.Anything).Return(&milvuspb.DescribeCollectionResponse{
+		Status: merr.Success(),
+		Schema: &schemapb.CollectionSchema{
+			Name: "test_loadJsonIndex",
+			Fields: []*schemapb.FieldSchema{
+				{FieldID: 101, DataType: schemapb.DataType_JSON, Name: "JSON"},
+			},
+		},
+		CollectionID:   1000,
+		CollectionName: "test_collection",
+	}, nil).Once()
 	suite.broker.EXPECT().GetIndexInfo(mock.Anything, int64(1), mock.AnythingOfType("int64")).
 		Return(nil, errors.New("mocked error"))
 	suite.broker.EXPECT().ListIndexes(mock.Anything, int64(1)).Return([]*indexpb.IndexInfo{
@@ -307,6 +332,8 @@ func (suite *IndexCheckerSuite) TestCreateNewIndex() {
 	checker.meta.ResourceManager.HandleNodeUp(ctx, 1)
 	checker.meta.ResourceManager.HandleNodeUp(ctx, 2)
 
+	suite.broker.EXPECT().DescribeCollection(mock.Anything, mock.Anything).
+		Return(nil, nil).Maybe()
 	// dist
 	segment := utils.CreateTestSegment(1, 1, 2, 1, 1, "test-insert-channel")
 	segment.IndexInfo = map[int64]*querypb.FieldIndexInfo{101: {
@@ -398,6 +425,17 @@ func (suite *IndexCheckerSuite) TestLoadJsonIndex() {
 	checker.dist.SegmentDistManager.Update(1, segment)
 
 	// broker
+	suite.broker.EXPECT().DescribeCollection(mock.Anything, mock.Anything).Return(&milvuspb.DescribeCollectionResponse{
+		Status: merr.Success(),
+		Schema: &schemapb.CollectionSchema{
+			Name: "test_loadJsonIndex",
+			Fields: []*schemapb.FieldSchema{
+				{FieldID: 101, DataType: schemapb.DataType_JSON, Name: "JSON"},
+			},
+		},
+		CollectionID:   1000,
+		CollectionName: "test_collection",
+	}, nil)
 	suite.broker.EXPECT().ListIndexes(mock.Anything, mock.Anything).Call.Return(
 		func(ctx context.Context, collectionID int64) ([]*indexpb.IndexInfo, error) {
 			return []*indexpb.IndexInfo{
@@ -475,6 +513,17 @@ func (suite *IndexCheckerSuite) TestJsonIndexNotMatch() {
 	checker.dist.SegmentDistManager.Update(1, utils.CreateTestSegment(1, 1, 2, 1, 1, "test-insert-channel"))
 
 	// broker
+	suite.broker.EXPECT().DescribeCollection(mock.Anything, mock.Anything).Return(&milvuspb.DescribeCollectionResponse{
+		Status: merr.Success(),
+		Schema: &schemapb.CollectionSchema{
+			Name: "test_loadJsonIndex",
+			Fields: []*schemapb.FieldSchema{
+				{FieldID: 101, DataType: schemapb.DataType_JSON, Name: "JSON"},
+			},
+		},
+		CollectionID:   1000,
+		CollectionName: "test_collection",
+	}, nil)
 	suite.broker.EXPECT().ListIndexes(mock.Anything, mock.Anything).Call.Return(
 		func(ctx context.Context, collectionID int64) ([]*indexpb.IndexInfo, error) {
 			return []*indexpb.IndexInfo{
@@ -546,6 +595,18 @@ func (suite *IndexCheckerSuite) TestCreateNewJsonIndex() {
 	checker.dist.SegmentDistManager.Update(1, segment)
 
 	// broker
+	suite.broker.EXPECT().DescribeCollection(mock.Anything, mock.Anything).Return(&milvuspb.DescribeCollectionResponse{
+		Status: merr.Success(),
+		Schema: &schemapb.CollectionSchema{
+			Name: "test_loadJsonIndex",
+			Fields: []*schemapb.FieldSchema{
+				{FieldID: 101, DataType: schemapb.DataType_JSON, Name: "JSON"},
+			},
+		},
+		CollectionID:   1000,
+		CollectionName: "test_collection",
+	}, nil)
+
 	suite.broker.EXPECT().ListIndexes(mock.Anything, mock.Anything).Call.Return(
 		func(ctx context.Context, collectionID int64) ([]*indexpb.IndexInfo, error) {
 			return []*indexpb.IndexInfo{
