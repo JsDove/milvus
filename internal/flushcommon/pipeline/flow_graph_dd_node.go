@@ -202,7 +202,7 @@ func (ddn *ddNode) Operate(in []Msg) []Msg {
 				WithLabelValues(fmt.Sprint(paramtable.GetNodeID()), metrics.InsertLabel).
 				Add(float64(imsg.GetNumRows()))
 
-			log.Debug("DDNode receive insert messages",
+			log.Info("DDNode receive insert messages",
 				zap.Int64("segmentID", imsg.GetSegmentID()),
 				zap.String("channel", ddn.vChannelName),
 				zap.Int("numRows", len(imsg.GetRowIDs())),
@@ -221,7 +221,7 @@ func (ddn *ddNode) Operate(in []Msg) []Msg {
 				continue
 			}
 
-			log.Debug("DDNode receive delete messages",
+			log.Info("DDNode receive delete messages",
 				zap.String("channel", ddn.vChannelName),
 				zap.Int64("numRows", dmsg.NumRows),
 				zap.Uint64("startPosTs", msMsg.StartPositions()[0].GetTimestamp()),
