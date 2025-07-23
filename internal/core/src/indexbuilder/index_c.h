@@ -45,6 +45,17 @@ BuildPrimaryIndex(ProtoLayoutInterface c_binary_set,
                   const uint64_t len);
 
 CStatus
+LoadPrimaryIndex(CPrimaryIndex* res_index,
+                  const uint8_t* serialized_load_index_info,
+                  const uint64_t len);
+
+CStatus
+QueryPrimaryIndex(CPrimaryIndex index_handle, const char* key, int64_t* result);
+
+CStatus
+DeletePrimaryIndex(CPrimaryIndex index_handle);
+
+CStatus
 CleanLocalData(CIndex index);
 
 CStatus

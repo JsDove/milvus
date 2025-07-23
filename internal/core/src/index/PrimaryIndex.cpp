@@ -45,21 +45,6 @@ struct Segment
 
 void
 PrimaryIndex::BuildWithPrimaryKeys() {
-    // std::vector<SegmentData> segments;
-    
-    // for (const auto& data : datas) {
-    //     SegmentData segment;
-    //     segment.segment_id = disk_file_manager_->GetFieldDataMeta().segment_id;
-        
-    //     auto num_rows = data->get_num_rows();
-    //     for (int64_t i = 0; i < num_rows; ++i) {
-    //         if (data->is_valid(i)) {
-    //             auto key = static_cast<const std::string*>(data->RawValue(i));
-    //             segment.keys.push_back(*key);
-    //         }
-    //     }
-    //     segments.push_back(segment);
-    // }
     std::vector<Segment> segments;
     segments.reserve(10000);
 
@@ -73,6 +58,12 @@ PrimaryIndex::BuildWithPrimaryKeys() {
             segments[i].add_key(key);
         }
     }
+    primary_index_->build(segments);
+    is_built_ = true;
+}
+
+void
+PrimaryIndex::BuildWithPrimaryKeys(const std::vector<SegmentData>& segments) {
     primary_index_->build(segments);
     is_built_ = true;
 }
@@ -100,7 +91,7 @@ PrimaryIndex::Upload(const Config& config) {
 }
 
 void
-PrimaryIndex::Load(milvus::tracer::TraceContext ctx, const Config& config) {
+PrimaryIndex::Load(const Config& config) {
     auto index_files =
         GetValueFromConfig<std::vector<std::string>>(config, INDEX_FILES);
     AssertInfo(index_files.has_value(),

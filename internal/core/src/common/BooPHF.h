@@ -287,11 +287,6 @@ namespace boomphf
                     elapsed -= min_e * 60;
                     int min_r = (int)(rem / 60);
                     rem -= min_r * 60;
-
-                    fprintf(stderr, "%c[%s]  %-5.3g%%   elapsed: %3i min %-2.0f sec   remaining: %3i min %-2.0f sec", 13,
-                            message.c_str(),
-                            100 * (double)done / todo,
-                            min_e, elapsed, min_r, rem);
                 }
                 else
                 {

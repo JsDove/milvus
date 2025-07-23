@@ -37,10 +37,13 @@ class PrimaryIndex  {
     Upload(const Config& config = {});
 
     void
-    Load(milvus::tracer::TraceContext ctx, const Config& config) ;
+    Load(const Config& config) ;
 
     void
     BuildWithPrimaryKeys();
+
+    void
+    BuildWithPrimaryKeys(const std::vector<SegmentData>& segments);
 
     void
     Build(const Config& config);

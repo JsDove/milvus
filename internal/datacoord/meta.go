@@ -77,6 +77,7 @@ type CompactionMeta interface {
 	GetAnalyzeMeta() *analyzeMeta
 	GetPartitionStatsMeta() *partitionStatsMeta
 	GetCompactionTaskMeta() *compactionTaskMeta
+	GetGlobalStatsMeta() *globalStatsMeta
 }
 
 var _ CompactionMeta = (*meta)(nil)
@@ -98,6 +99,7 @@ type meta struct {
 	partitionStatsMeta *partitionStatsMeta
 	compactionTaskMeta *compactionTaskMeta
 	statsTaskMeta      *statsTaskMeta
+	globalStatsMeta    *globalStatsMeta
 }
 
 func (m *meta) GetIndexMeta() *indexMeta {
@@ -114,6 +116,10 @@ func (m *meta) GetPartitionStatsMeta() *partitionStatsMeta {
 
 func (m *meta) GetCompactionTaskMeta() *compactionTaskMeta {
 	return m.compactionTaskMeta
+}
+
+func (m *meta) GetGlobalStatsMeta() *globalStatsMeta {
+	return m.globalStatsMeta
 }
 
 type channelCPs struct {
@@ -178,6 +184,11 @@ func newMeta(ctx context.Context, catalog metastore.DataCoordCatalog, chunkManag
 	if err != nil {
 		return nil, err
 	}
+
+	gsm, err := newGlobalStatsMeta(ctx, catalog)
+	if err != nil {
+		return nil, err
+	}
 	mt := &meta{
 		ctx:                ctx,
 		catalog:            catalog,
@@ -190,6 +201,7 @@ func newMeta(ctx context.Context, catalog metastore.DataCoordCatalog, chunkManag
 		partitionStatsMeta: psm,
 		compactionTaskMeta: ctm,
 		statsTaskMeta:      stm,
+		globalStatsMeta:    gsm,
 	}
 	err = mt.reloadFromKV(ctx, broker)
 	if err != nil {
