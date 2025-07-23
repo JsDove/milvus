@@ -97,6 +97,35 @@ message BuildIndexInfo {
   SegmentInsertFiles segment_insert_files = 25;
 }
 
+message SegmentPrimaryKeys {
+  int64 segment_id = 1;
+  repeated string primary_keys = 2;
+}
+
+message BuildPrimaryIndexInfo {
+  string clusterID = 1;
+  int64 buildID = 2;
+  int64 collectionID = 3;
+  int64 partitionID = 4;
+  int64 segmentID = 5;
+  int64 index_version = 6;
+  int32 current_index_version = 7;
+  schema.FieldSchema field_schema = 8;
+  StorageConfig storage_config = 9;
+  repeated SegmentPrimaryKeys segment_primary_keys = 10;
+}
+
+message LoadPrimaryIndexInfo {
+  int64 buildID = 1;
+  int64 version = 2;
+  int64 collectionID = 3;
+  int64 partitionID = 4;
+  int64 segmentID = 5;
+  schema.FieldSchema field_schema = 6;
+  repeated string files = 7;
+  common.LoadPriority load_priority = 8;
+}
+
 message LoadTextIndexInfo {
   int64 FieldID = 1;
   int64 version = 2;
