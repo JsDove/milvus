@@ -74,6 +74,10 @@ type Server struct {
 	tikvCli *txnkv.Client
 
 	mixCoordClient types.MixCoordClient
+
+	// Event related fields
+	eventMu       sync.RWMutex
+	eventWatchers map[string][]chan *datapb.WatchResponse
 }
 
 func NewServer(ctx context.Context, factory dependency.Factory) (*Server, error) {
@@ -918,4 +922,9 @@ func (s *Server) GetQuotaMetrics(ctx context.Context, req *internalpb.GetQuotaMe
 
 func (s *Server) ListLoadedSegments(ctx context.Context, req *querypb.ListLoadedSegmentsRequest) (*querypb.ListLoadedSegmentsResponse, error) {
 	return s.mixCoord.ListLoadedSegments(ctx, req)
+}
+
+// Watch implements streaming event watching
+func (s *Server) Watch(req *datapb.WatchRequest, stream datapb.DataCoord_WatchServer) error {
+	return s.mixCoord.Watch(req, stream)
 }

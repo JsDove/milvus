@@ -1860,3 +1860,18 @@ func (c *Client) ListLoadedSegments(ctx context.Context, req *querypb.ListLoaded
 		return client.ListLoadedSegments(ctx, req)
 	})
 }
+
+func (c *Client) Watch(ctx context.Context, req *datapb.WatchRequest, opts ...grpc.CallOption) (datapb.DataCoord_WatchClient, error) {
+	req = typeutil.Clone(req)
+	commonpbutil.UpdateMsgBase(
+		req.GetBase(),
+		commonpbutil.FillMsgBaseFromClient(paramtable.GetNodeID(), commonpbutil.WithTargetID(c.grpcClient.GetNodeID())),
+	)
+	ret, err := c.grpcClient.ReCall(ctx, func(client MixCoordClient) (any, error) {
+		return client.DataCoordClient.Watch(ctx, req, opts...)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return ret.(datapb.DataCoord_WatchClient), nil
+}

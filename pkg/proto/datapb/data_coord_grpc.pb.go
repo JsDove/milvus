@@ -70,6 +70,7 @@ const (
 	DataCoord_ImportV2_FullMethodName                    = "/milvus.proto.data.DataCoord/ImportV2"
 	DataCoord_GetImportProgress_FullMethodName           = "/milvus.proto.data.DataCoord/GetImportProgress"
 	DataCoord_ListImports_FullMethodName                 = "/milvus.proto.data.DataCoord/ListImports"
+	DataCoord_Watch_FullMethodName                       = "/milvus.proto.data.DataCoord/Watch"
 )
 
 // DataCoordClient is the client API for DataCoord service.
@@ -130,6 +131,7 @@ type DataCoordClient interface {
 	ImportV2(ctx context.Context, in *internalpb.ImportRequestInternal, opts ...grpc.CallOption) (*internalpb.ImportResponse, error)
 	GetImportProgress(ctx context.Context, in *internalpb.GetImportProgressRequest, opts ...grpc.CallOption) (*internalpb.GetImportProgressResponse, error)
 	ListImports(ctx context.Context, in *internalpb.ListImportsRequestInternal, opts ...grpc.CallOption) (*internalpb.ListImportsResponse, error)
+	Watch(ctx context.Context, in *WatchRequest, opts ...grpc.CallOption) (DataCoord_WatchClient, error)
 }
 
 type dataCoordClient struct {
@@ -564,6 +566,38 @@ func (c *dataCoordClient) ListImports(ctx context.Context, in *internalpb.ListIm
 	return out, nil
 }
 
+func (c *dataCoordClient) Watch(ctx context.Context, in *WatchRequest, opts ...grpc.CallOption) (DataCoord_WatchClient, error) {
+	stream, err := c.cc.NewStream(ctx, &DataCoord_ServiceDesc.Streams[0], DataCoord_Watch_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &dataCoordWatchClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type DataCoord_WatchClient interface {
+	Recv() (*WatchResponse, error)
+	grpc.ClientStream
+}
+
+type dataCoordWatchClient struct {
+	grpc.ClientStream
+}
+
+func (x *dataCoordWatchClient) Recv() (*WatchResponse, error) {
+	m := new(WatchResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // DataCoordServer is the server API for DataCoord service.
 // All implementations should embed UnimplementedDataCoordServer
 // for forward compatibility
@@ -622,6 +656,7 @@ type DataCoordServer interface {
 	ImportV2(context.Context, *internalpb.ImportRequestInternal) (*internalpb.ImportResponse, error)
 	GetImportProgress(context.Context, *internalpb.GetImportProgressRequest) (*internalpb.GetImportProgressResponse, error)
 	ListImports(context.Context, *internalpb.ListImportsRequestInternal) (*internalpb.ListImportsResponse, error)
+	Watch(*WatchRequest, DataCoord_WatchServer) error
 }
 
 // UnimplementedDataCoordServer should be embedded to have forward compatible implementations.
@@ -768,6 +803,9 @@ func (UnimplementedDataCoordServer) GetImportProgress(context.Context, *internal
 }
 func (UnimplementedDataCoordServer) ListImports(context.Context, *internalpb.ListImportsRequestInternal) (*internalpb.ListImportsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListImports not implemented")
+}
+func (UnimplementedDataCoordServer) Watch(*WatchRequest, DataCoord_WatchServer) error {
+	return status.Errorf(codes.Unimplemented, "method Watch not implemented")
 }
 
 // UnsafeDataCoordServer may be embedded to opt out of forward compatibility for this service.
@@ -1627,6 +1665,27 @@ func _DataCoord_ListImports_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DataCoord_Watch_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(WatchRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(DataCoordServer).Watch(m, &dataCoordWatchServer{stream})
+}
+
+type DataCoord_WatchServer interface {
+	Send(*WatchResponse) error
+	grpc.ServerStream
+}
+
+type dataCoordWatchServer struct {
+	grpc.ServerStream
+}
+
+func (x *dataCoordWatchServer) Send(m *WatchResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // DataCoord_ServiceDesc is the grpc.ServiceDesc for DataCoord service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1823,7 +1882,13 @@ var DataCoord_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _DataCoord_ListImports_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Watch",
+			Handler:       _DataCoord_Watch_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "data_coord.proto",
 }
 

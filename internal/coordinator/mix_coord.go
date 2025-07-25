@@ -1081,3 +1081,7 @@ func (s *mixCoordImpl) ListLoadedSegments(ctx context.Context, req *querypb.List
 func (s *mixCoordImpl) FlushAll(ctx context.Context, req *datapb.FlushAllRequest) (*datapb.FlushAllResponse, error) {
 	return s.datacoordServer.FlushAll(ctx, req)
 }
+
+func (s *mixCoordImpl) Watch(req *datapb.WatchRequest, stream datapb.DataCoord_WatchServer) error {
+	return s.datacoordServer.Watch(req, stream)
+}
