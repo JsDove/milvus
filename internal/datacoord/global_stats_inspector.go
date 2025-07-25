@@ -204,28 +204,10 @@ func (gsi *globalStatsInspector) cleanupGlobalStatsTasksLoop() {
 }
 
 func (gsi *globalStatsInspector) cleanupGlobalStatsTasks() {
-	log.Info("start cleanupGlobalStatsTasks...")
-	defer gsi.loopWg.Done()
-
-	ticker := time.NewTicker(Params.DataCoordCfg.GCInterval.GetAsDuration(time.Second))
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-gsi.ctx.Done():
-			log.Warn("DataCoord context done, exit cleanupGlobalStatsTasks...")
-			return
-		case <-ticker.C:
-			start := time.Now()
-			log.Info("start cleanupUnusedStatsTasks...", zap.Time("startAt", start))
-
-			taskIDs := gsi.mt.globalStatsMeta.CanCleanedTasks()
-			for _, taskID := range taskIDs {
-				if err := gsi.mt.globalStatsMeta.DropGlobalStatsTask(gsi.ctx, taskID); err != nil {
-					log.Warn("clean up stats task failed", zap.Int64("taskID", taskID), zap.Error(err))
-				}
-			}
-			log.Info("cleanupUnusedStatsTasks done", zap.Duration("timeCost", time.Since(start)))
+	taskIDs := gsi.mt.globalStatsMeta.CanCleanedTasks()
+	for _, taskID := range taskIDs {
+		if err := gsi.mt.globalStatsMeta.DropGlobalStatsTask(gsi.ctx, taskID); err != nil {
+			log.Warn("clean up stats task failed", zap.Int64("taskID", taskID), zap.Error(err))
 		}
 	}
 }

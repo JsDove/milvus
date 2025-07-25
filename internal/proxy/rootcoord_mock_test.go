@@ -1627,6 +1627,10 @@ func (coord *MixCoordMock) FlushAll(ctx context.Context, in *datapb.FlushAllRequ
 	return &datapb.FlushAllResponse{}, nil
 }
 
+func (coord *MixCoordMock) Watch(ctx context.Context, in *datapb.WatchRequest, opts ...grpc.CallOption) (datapb.DataCoord_WatchClient, error) {
+	return nil, nil
+}
+
 type DescribeCollectionFunc func(ctx context.Context, request *milvuspb.DescribeCollectionRequest, opts ...grpc.CallOption) (*milvuspb.DescribeCollectionResponse, error)
 
 type ShowPartitionsFunc func(ctx context.Context, request *milvuspb.ShowPartitionsRequest, opts ...grpc.CallOption) (*milvuspb.ShowPartitionsResponse, error)

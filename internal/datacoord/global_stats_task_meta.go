@@ -26,6 +26,7 @@ import (
 
 	"github.com/milvus-io/milvus/internal/metastore"
 	"github.com/milvus-io/milvus/pkg/v2/log"
+	"github.com/milvus-io/milvus/pkg/v2/metrics"
 	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/workerpb"
@@ -57,7 +58,7 @@ func newGlobalStatsMeta(ctx context.Context, catalog metastore.DataCoordCatalog)
 func (m *globalStatsMeta) reloadFromKV() error {
 	record := timerecord.NewTimeRecorder("globalStatsMeta-reloadFromKV")
 
-	globalStatsTasks, err := m.catalog.ListGlobalStatsInfos(m.ctx)
+	globalStatsTasks, err := m.catalog.ListGlobalStatsTask(m.ctx)
 	if err != nil {
 		log.Warn("globalStatsMeta reloadFromKV load global stats tasks failed", zap.Error(err))
 		return err
@@ -190,4 +191,22 @@ func (m *globalStatsMeta) CheckCleanGlobalStatsTask(taskID UniqueID) (bool, *dat
 		return false, t
 	}
 	return true, nil
+}
+
+func (m *globalStatsMeta) updateMetrics() {
+	taskMetrics := make(map[indexpb.JobState]int)
+	taskMetrics[indexpb.JobState_JobStateNone] = 0
+	taskMetrics[indexpb.JobState_JobStateInit] = 0
+	taskMetrics[indexpb.JobState_JobStateInProgress] = 0
+	taskMetrics[indexpb.JobState_JobStateFinished] = 0
+	taskMetrics[indexpb.JobState_JobStateFailed] = 0
+	taskMetrics[indexpb.JobState_JobStateRetry] = 0
+	for _, t := range m.tasks {
+		taskMetrics[t.GetState()]++
+	}
+
+	jobType := indexpb.JobType_JobTypeStatsJob.String()
+	for k, v := range taskMetrics {
+		metrics.GlobalStatsTaskNum.WithLabelValues(jobType, k.String()).Set(float64(v))
+	}
 }

@@ -62,8 +62,10 @@ func (gspm *PKStatsManager) UpdatePrimaryKey(vchannelName string, segmentID int6
 
 	stats, exists := gspm.growingSegmentPK[vchannelName][segmentID]
 	if !exists {
-		log.Warn("primary key stats not found for segment", zap.String("vchannelName", vchannelName), zap.Int64("segmentID", segmentID))
-		return nil
+		stats = gspm.createSegmentStats(vchannelName, segmentID, gspm.pkFieldID, gspm.pkType)
+		if stats == nil {
+			return errors.New("failed to create primary key stats for segment")
+		}
 	}
 
 	stats.Update(pk)
