@@ -968,6 +968,9 @@ func (h *mockHandler) ListLoadedSegments(ctx context.Context) ([]int64, error) {
 	return nil, nil
 }
 
+func (h *mockHandler) BroadcastEvent(eventType datapb.EventType, eventData []byte) {
+}
+
 func newMockHandlerWithMeta(meta *meta) *mockHandler {
 	return &mockHandler{
 		meta: meta,

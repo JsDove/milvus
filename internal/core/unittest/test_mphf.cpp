@@ -107,7 +107,7 @@ void test_primary_index_with_data(const std::vector<std::string>& primary_keys,
     config[milvus::LOAD_PRIORITY] = milvus::proto::common::LoadPriority::HIGH;
 
     index = std::make_unique<PrimaryIndex>(ctx, true);
-    index->Load(milvus::tracer::TraceContext{}, config);
+    index->Load(config);
 
     auto result = index->query("seg2_key20");
     ASSERT_EQ(result, 2);

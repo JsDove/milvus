@@ -3272,6 +3272,53 @@ func (_c *MockDataCoord_UpdateSegmentStatistics_Call) RunAndReturn(run func(cont
 	return _c
 }
 
+// Watch provides a mock function with given fields: _a0, _a1
+func (_m *MockDataCoord) Watch(_a0 *datapb.WatchRequest, _a1 datapb.DataCoord_WatchServer) error {
+	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Watch")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*datapb.WatchRequest, datapb.DataCoord_WatchServer) error); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataCoord_Watch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Watch'
+type MockDataCoord_Watch_Call struct {
+	*mock.Call
+}
+
+// Watch is a helper method to define mock.On call
+//   - _a0 *datapb.WatchRequest
+//   - _a1 datapb.DataCoord_WatchServer
+func (_e *MockDataCoord_Expecter) Watch(_a0 interface{}, _a1 interface{}) *MockDataCoord_Watch_Call {
+	return &MockDataCoord_Watch_Call{Call: _e.mock.On("Watch", _a0, _a1)}
+}
+
+func (_c *MockDataCoord_Watch_Call) Run(run func(_a0 *datapb.WatchRequest, _a1 datapb.DataCoord_WatchServer)) *MockDataCoord_Watch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(*datapb.WatchRequest), args[1].(datapb.DataCoord_WatchServer))
+	})
+	return _c
+}
+
+func (_c *MockDataCoord_Watch_Call) Return(_a0 error) *MockDataCoord_Watch_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataCoord_Watch_Call) RunAndReturn(run func(*datapb.WatchRequest, datapb.DataCoord_WatchServer) error) *MockDataCoord_Watch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // WatchChannels provides a mock function with given fields: _a0, _a1
 func (_m *MockDataCoord) WatchChannels(_a0 context.Context, _a1 *datapb.WatchChannelsRequest) (*datapb.WatchChannelsResponse, error) {
 	ret := _m.Called(_a0, _a1)

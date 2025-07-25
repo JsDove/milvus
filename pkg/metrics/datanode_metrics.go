@@ -324,7 +324,16 @@ var (
 			Namespace: milvusNamespace,
 			Subsystem: typeutil.IndexNodeRole,
 			Name:      "task_build_json_stats_latency",
-			Help:      "latency of building the index by knowhere",
+			Help:      "latency of building json stats for segment",
+			Buckets:   indexBucket,
+		}, []string{nodeIDLabelName})
+
+	DataNodeBuildPrimaryKeyStatsLatency = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: milvusNamespace,
+			Subsystem: typeutil.DataNodeRole,
+			Name:      "task_build_primary_key_stats_latency",
+			Help:      "latency of building primary key stats for vchannel",
 			Buckets:   indexBucket,
 		}, []string{nodeIDLabelName})
 

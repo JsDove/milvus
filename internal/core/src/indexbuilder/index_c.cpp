@@ -492,28 +492,10 @@ BuildPrimaryIndex(ProtoLayoutInterface result,
             fileManagerContext, false);
         index->BuildWithPrimaryKeys(segments);
         
-        // auto segment_processing_end = std::chrono::high_resolution_clock::now();
-        // auto segment_processing_duration = std::chrono::duration_cast<std::chrono::microseconds>(
-        //     segment_processing_end - segment_processing_start);
-        
-        // std::cout << "Segment processing completed - "
-        //           << "BuildID: " << build_index_info->buildid()
-        //           << ", NumSegments: " << build_index_info->segment_primary_keys_size()
-        //           << ", Duration: " << segment_processing_duration.count() / 1000000.0 << " seconds" << std::endl;
-        
-        // auto upload_start = std::chrono::high_resolution_clock::now();
-        
         auto create_index_result = index->Upload();
         create_index_result->SerializeAt(
             reinterpret_cast<milvus::ProtoLayout*>(result));
         
-        // auto upload_end = std::chrono::high_resolution_clock::now();
-        // auto upload_duration = std::chrono::duration_cast<std::chrono::microseconds>(
-        //     upload_end - upload_start);
-        
-        // std::cout << "Upload completed - "
-        //           << "BuildID: " << build_index_info->buildid()
-        //           << ", Duration: " << upload_duration.count() / 1000000.0 << " seconds" << std::endl;
         auto status = CStatus();
         status.error_code = Success;
         status.error_msg = "";

@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	sio "io"
+	"strconv"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -31,6 +32,7 @@ import (
 	"github.com/milvus-io/milvus/internal/storage"
 	"github.com/milvus-io/milvus/internal/util/indexcgowrapper"
 	"github.com/milvus-io/milvus/pkg/v2/log"
+	"github.com/milvus-io/milvus/pkg/v2/metrics"
 	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/indexcgopb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/indexpb"
@@ -155,10 +157,6 @@ func (gt *globalStatsTask) Execute(ctx context.Context) error {
 	allPrimaryKeys := make([]interface{}, 0)
 
 	for _, seg := range segmentInfos {
-		log.Ctx(ctx).Info("processing segment",
-			zap.Int64("segmentID", seg.GetID()),
-			zap.Int64("numRows", seg.GetNumOfRows()),
-			zap.Int("numBinlogs", len(seg.GetBinlogs())))
 		segmentPKs, err := gt.readSegmentPrimaryKeys(ctx, seg, pkField)
 		if err != nil {
 			log.Ctx(ctx).Error("failed to read segment primary keys",
@@ -213,8 +211,6 @@ func (gt *globalStatsTask) Execute(ctx context.Context) error {
 	buildIndexParams := &indexcgopb.BuildPrimaryIndexInfo{
 		BuildID:            gt.req.GetTaskID(),
 		CollectionID:       gt.req.GetCollectionID(),
-		PartitionID:        gt.req.GetPartitionID(),
-		SegmentID:          segmentInfos[0].GetID(),
 		StorageConfig:      newStorageConfig,
 		SegmentPrimaryKeys: segmentPrimaryKeys,
 	}
@@ -230,31 +226,16 @@ func (gt *globalStatsTask) Execute(ctx context.Context) error {
 	}
 	log.Ctx(ctx).Info("files", zap.Any("files", files))
 	gt.manager.StoreGlobalStatsFiles(gt.req.GetClusterID(), gt.req.GetTaskID(), files)
-	// loadIndexParams := &indexcgopb.LoadPrimaryIndexInfo{
-	// 	BuildID:      gt.req.GetTaskID(),
-	// 	CollectionID: gt.req.GetCollectionID(),
-	// 	PartitionID:  gt.req.GetPartitionID(),
-	// 	SegmentID:    segmentInfos[0].GetID(),
-	// 	Files:        files,
-	// }
-
-	// handle, err := indexcgowrapper.LoadPrimaryIndex(ctx, loadIndexParams)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// result, err := handle.Query("2000")
-	// if err != nil {
-	// 	return err
-	// }
-	// result3, err := handle.Query("4999999")
-	// result2, err := handle.Query("5000000")
-
-	// log.Ctx(ctx).Info("Query result", zap.Int64("result", result), zap.Int64("result2", result2), zap.Int64("result3", result3))
 
 	totalElapse := gt.tr.RecordSpan()
-	log.Ctx(ctx).Info("uploaded", zap.Any("uploaded", uploaded),
-		zap.Duration("totalElapse", totalElapse))
+	metrics.DataNodeBuildPrimaryKeyStatsLatency.WithLabelValues(strconv.FormatInt(paramtable.GetNodeID(), 10)).Observe(totalElapse.Seconds())
+	log.Ctx(ctx).Info("create primary key index done",
+		zap.Duration("totalElapse", totalElapse),
+		zap.Int64("taskID", gt.req.GetTaskID()),
+		zap.Int64("collectionID", gt.req.GetCollectionID()),
+		zap.String("vchannelName", gt.req.GetVChannel()),
+		zap.Strings("files", files),
+	)
 
 	return nil
 }

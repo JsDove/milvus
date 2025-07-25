@@ -22,6 +22,40 @@ func (_m *NMockHandler) EXPECT() *NMockHandler_Expecter {
 	return &NMockHandler_Expecter{mock: &_m.Mock}
 }
 
+// BroadcastEvent provides a mock function with given fields: eventType, eventData
+func (_m *NMockHandler) BroadcastEvent(eventType datapb.EventType, eventData []byte) {
+	_m.Called(eventType, eventData)
+}
+
+// NMockHandler_BroadcastEvent_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BroadcastEvent'
+type NMockHandler_BroadcastEvent_Call struct {
+	*mock.Call
+}
+
+// BroadcastEvent is a helper method to define mock.On call
+//   - eventType datapb.EventType
+//   - eventData []byte
+func (_e *NMockHandler_Expecter) BroadcastEvent(eventType interface{}, eventData interface{}) *NMockHandler_BroadcastEvent_Call {
+	return &NMockHandler_BroadcastEvent_Call{Call: _e.mock.On("BroadcastEvent", eventType, eventData)}
+}
+
+func (_c *NMockHandler_BroadcastEvent_Call) Run(run func(eventType datapb.EventType, eventData []byte)) *NMockHandler_BroadcastEvent_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(datapb.EventType), args[1].([]byte))
+	})
+	return _c
+}
+
+func (_c *NMockHandler_BroadcastEvent_Call) Return() *NMockHandler_BroadcastEvent_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *NMockHandler_BroadcastEvent_Call) RunAndReturn(run func(datapb.EventType, []byte)) *NMockHandler_BroadcastEvent_Call {
+	_c.Run(run)
+	return _c
+}
+
 // CheckShouldDropChannel provides a mock function with given fields: ch
 func (_m *NMockHandler) CheckShouldDropChannel(ch string) bool {
 	ret := _m.Called(ch)
