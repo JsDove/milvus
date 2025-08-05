@@ -174,22 +174,21 @@ func (impl *shardInterceptor) handleInsertMessage(ctx context.Context, msg messa
 	body, _ := insertMsg.Body()
 	var pks []storage.PrimaryKey
 	if resource.Resource().PrimaryIndexManager() != nil {
-		var primaryKeys []interface{}
-		var duplicateKeys *schemapb.IDs
 		var err error
-		primaryKeys, _ = resource.Resource().PrimaryIndexManager().ExtractPrimaryKeyColumn(insertMsg)
-		if err == nil && len(primaryKeys) > 0 {
-			pks = resource.Resource().PrimaryIndexManager().ConvertToPrimaryKeys(primaryKeys)
-			duplicateKeys = resource.Resource().PrimaryIndexManager().CheckDuplicatePrimaryKeys(body.GetShardName(), pks)
+		pks, err = resource.Resource().PrimaryIndexManager().ExtractPrimaryKeyColumn(insertMsg)
+		if err == nil {
+			duplicateKeys, segmentIDs := resource.Resource().PrimaryIndexManager().CheckDuplicatePrimaryKeys(body.GetShardName(), pks)
 			if duplicateKeys != nil {
 				switch duplicateKeys.GetIdField().(type) {
 				case *schemapb.IDs_IntId:
 					if len(duplicateKeys.GetIntId().GetData()) > 0 {
 						header.DeletePrimaryKeys = duplicateKeys
+						header.SegmentIds = segmentIDs
 					}
 				case *schemapb.IDs_StrId:
 					if len(duplicateKeys.GetStrId().GetData()) > 0 {
 						header.DeletePrimaryKeys = duplicateKeys
+						header.SegmentIds = segmentIDs
 					}
 				}
 			}
@@ -248,7 +247,7 @@ func (impl *shardInterceptor) handleInsertMessage(ctx context.Context, msg messa
 			SegmentId: result.SegmentID,
 		}
 
-		if resource.Resource().PrimaryIndexManager() != nil && len(pks) > 0 {
+		if resource.Resource().PrimaryIndexManager() != nil {
 			resource.Resource().PrimaryIndexManager().UpdateBloomFilterFromPrimaryKeys(body.GetShardName(), pks, result.SegmentID)
 		}
 	}
@@ -261,12 +260,22 @@ func (impl *shardInterceptor) handleInsertMessage(ctx context.Context, msg messa
 func (impl *shardInterceptor) handleDeleteMessage(ctx context.Context, msg message.MutableMessage, appendOp interceptors.Append) (message.MessageID, error) {
 	deleteMessage := message.MustAsMutableDeleteMessageV1(msg)
 	header := deleteMessage.Header()
+	if resource.Resource().PrimaryIndexManager() != nil {
+		body, _ := deleteMessage.Body()
+		pks := storage.ParseIDs2PrimaryKeys(body.GetPrimaryKeys())
+		duplicateKeys, segmentIDs := resource.Resource().PrimaryIndexManager().CheckDuplicatePrimaryKeys(body.GetShardName(), pks)
+		body.PrimaryKeys = duplicateKeys
+		header.SegmentIds = segmentIDs
+		log.Info("handleDeleteMessage pks", zap.Any("pks", body.GetPrimaryKeys()), zap.Any("segmentIDs", segmentIDs))
+	}
+
 	if err := impl.shardManager.CheckIfCollectionExists(header.GetCollectionId()); err != nil {
 		// The collection can not be deleted at current shard, ignored
 		return nil, status.NewUnrecoverableError(err.Error())
 	}
 
 	impl.shardManager.ApplyDelete(deleteMessage)
+	deleteMessage.OverwriteHeader(header)
 	return appendOp(ctx, msg)
 }
 

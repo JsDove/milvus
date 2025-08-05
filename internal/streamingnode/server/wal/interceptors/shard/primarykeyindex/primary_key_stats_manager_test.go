@@ -58,13 +58,13 @@ func TestMemoryUsageWith10kKeys(t *testing.T) {
 
 	for i := 0; i < numKeys; i++ {
 		pk := storage.NewInt64PrimaryKey(int64(i))
-		foundSegmentID := manager.CheckDuplicatePrimaryKeys("test", []storage.PrimaryKey{pk})
+		foundSegmentID, _ := manager.CheckDuplicatePrimaryKeys("test", []storage.PrimaryKey{pk})
 		assert.Equal(t, segmentID, foundSegmentID, "Key %d should exist", i)
 	}
 
 	for i := numKeys; i < numKeys+100; i++ {
 		pk := storage.NewInt64PrimaryKey(int64(i))
-		foundSegmentID := manager.CheckDuplicatePrimaryKeys("test", []storage.PrimaryKey{pk})
+		foundSegmentID, _ := manager.CheckDuplicatePrimaryKeys("test", []storage.PrimaryKey{pk})
 		assert.Equal(t, int64(0), foundSegmentID, "Key %d should not exist", i)
 	}
 }
@@ -84,13 +84,13 @@ func TestMemoryUsageWith10kVarcharKeys(t *testing.T) {
 
 	for i := 0; i < numKeys; i++ {
 		pk := storage.NewVarCharPrimaryKey(fmt.Sprintf("key_%d", i))
-		foundSegmentID := manager.CheckDuplicatePrimaryKeys("test", []storage.PrimaryKey{pk})
+		foundSegmentID, _ := manager.CheckDuplicatePrimaryKeys("test", []storage.PrimaryKey{pk})
 		assert.Equal(t, segmentID, foundSegmentID, "Key %d should exist", i)
 	}
 
 	for i := numKeys; i < numKeys+100; i++ {
 		pk := storage.NewVarCharPrimaryKey(fmt.Sprintf("key_%d", i))
-		foundSegmentID := manager.CheckDuplicatePrimaryKeys("test", []storage.PrimaryKey{pk})
+		foundSegmentID, _ := manager.CheckDuplicatePrimaryKeys("test", []storage.PrimaryKey{pk})
 		assert.Equal(t, int64(0), foundSegmentID, "Key %d should not exist", i)
 	}
 }

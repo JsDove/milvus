@@ -83,8 +83,13 @@ func (s *Server) watchEvents() error {
 	}
 
 	ctx := s.watchCtx
+
+	// 在一个 Watch 请求中同时监听两种事件类型
 	stream, err := mixCoord.Watch(ctx, &datapb.WatchRequest{
-		EventType: datapb.EventType_EventType_PrimaryKeyIndexBuilt,
+		EventTypes: []datapb.EventType{
+			datapb.EventType_PrimaryKeyIndexBuilt,
+			datapb.EventType_SegmentCompaction,
+		},
 	})
 	if err != nil {
 		return err
@@ -100,8 +105,10 @@ func (s *Server) watchEvents() error {
 			zap.String("type", event.EventType.String()))
 
 		switch event.EventType {
-		case datapb.EventType_EventType_PrimaryKeyIndexBuilt:
+		case datapb.EventType_PrimaryKeyIndexBuilt:
 			s.handlePrimaryKeyIndexBuilt(event.EventData)
+		case datapb.EventType_SegmentCompaction:
+			s.handleSegmentCompaction(event.EventData)
 		}
 	}
 }
@@ -114,6 +121,17 @@ func (s *Server) handlePrimaryKeyIndexBuilt(data []byte) {
 	}
 
 	resource.Resource().PrimaryIndexManager().LoadSealedIndex(&eventData)
+}
+
+func (s *Server) handleSegmentCompaction(data []byte) {
+	var eventData datapb.SegmentCompactionData
+	if err := proto.Unmarshal(data, &eventData); err != nil {
+		log.Ctx(s.watchCtx).Error("failed to unmarshal segment compaction event data", zap.Error(err))
+		return
+	}
+	log.Ctx(s.watchCtx).Info("Received segment compaction event from MixCoord",
+		zap.Any("eventData", &eventData))
+	resource.Resource().PrimaryIndexManager().SegmentChange(&eventData)
 }
 
 // Stop stops the streamingnode server.

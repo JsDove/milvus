@@ -595,7 +595,7 @@ func (c *compactionInspector) createCompactTask(t *datapb.CompactionTask) (Compa
 	var task CompactionTask
 	switch t.GetType() {
 	case datapb.CompactionType_MixCompaction, datapb.CompactionType_SortCompaction:
-		task = newMixCompactionTask(t, c.allocator, c.meta, c.ievm)
+		task = newMixCompactionTask(t, c.allocator, c.meta, c.ievm, c.handler)
 	case datapb.CompactionType_Level0DeleteCompaction:
 		task = newL0CompactionTask(t, c.allocator, c.meta)
 	case datapb.CompactionType_ClusteringCompaction:

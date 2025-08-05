@@ -40,7 +40,7 @@ func (gspm *PKStatsManager) createSegmentStats(vchannelName string, segmentID in
 		gspm.growingSegmentPK[vchannelName] = make(map[int64]*storage.PrimaryKeyStats)
 	}
 
-	stats, err := storage.NewPrimaryKeyStats(pkFieldID, pkType, paramtable.Get().CommonCfg.BloomFilterSize.GetAsInt64())
+	stats, err := storage.NewPrimaryKeyStats(pkFieldID, pkType, paramtable.Get().DataNodeCfg.BinLogMaxSize.GetAsInt64())
 	if err != nil {
 		log.Error("failed to create primary key stats for segment",
 			zap.Int64("segmentID", segmentID),
@@ -116,12 +116,13 @@ func (gspm *PKStatsManager) Close() {
 	gspm.growingSegmentPK = nil
 }
 
-func (gspm *PKStatsManager) CheckDuplicatePrimaryKeys(vchannelName string, pks []storage.PrimaryKey) *schemapb.IDs {
+func (gspm *PKStatsManager) CheckDuplicatePrimaryKeys(vchannelName string, pks []storage.PrimaryKey) (*schemapb.IDs, []int64) {
 	gspm.mu.RLock()
 	defer gspm.mu.RUnlock()
 	var duplicates []storage.PrimaryKey
+	var segmentIDs []int64
 	for _, pk := range pks {
-		for _, stats := range gspm.growingSegmentPK[vchannelName] {
+		for segmentID, stats := range gspm.growingSegmentPK[vchannelName] {
 			if stats == nil {
 				continue
 			}
@@ -138,8 +139,10 @@ func (gspm *PKStatsManager) CheckDuplicatePrimaryKeys(vchannelName string, pks [
 					exists = stats.BF.TestString(stringValue)
 				}
 				if exists {
+					log.Debug("check duplicate primary keys", zap.Any("pk", pk), zap.Int64("segmentID", segmentID))
 					duplicates = append(duplicates, pk)
-					break
+					segmentIDs = append(segmentIDs, segmentID)
+					continue
 				}
 			}
 		}
@@ -149,13 +152,15 @@ func (gspm *PKStatsManager) CheckDuplicatePrimaryKeys(vchannelName string, pks [
 				log.Error("failed to query sealed index", zap.Error(err))
 				continue
 			}
+			log.Debug("query sealed index", zap.Int64("result", result))
 			if result != -1 {
 				duplicates = append(duplicates, pk)
+				segmentIDs = append(segmentIDs, result)
 			}
 		}
 	}
 	ids := storage.ParsePrimaryKeys2IDs(duplicates)
-	return ids
+	return ids, segmentIDs
 }
 
 func (gspm *PKStatsManager) SetPrimaryKeyInfo(pkFieldID int64, pkType int64) {
@@ -172,7 +177,7 @@ func (gspm *PKStatsManager) GetPrimaryKeyInfo() (int64, int64) {
 	return gspm.pkFieldID, gspm.pkType
 }
 
-func (gspm *PKStatsManager) ConvertToPrimaryKeys(data []interface{}) []storage.PrimaryKey {
+func (gspm *PKStatsManager) convertToPrimaryKeys(data []interface{}) []storage.PrimaryKey {
 	pks := make([]storage.PrimaryKey, len(data))
 	for i, v := range data {
 		switch val := v.(type) {
@@ -236,7 +241,7 @@ func (gspm *PKStatsManager) ExtractColumnData(insertMsg interface{}, fieldID int
 	return nil, errors.New("no data found for field")
 }
 
-func (gspm *PKStatsManager) ExtractPrimaryKeyColumn(insertMsg interface{}) ([]interface{}, error) {
+func (gspm *PKStatsManager) ExtractPrimaryKeyColumn(insertMsg interface{}) ([]storage.PrimaryKey, error) {
 	pkFieldID, _ := gspm.GetPrimaryKeyInfo()
 	if pkFieldID == 0 {
 		return nil, errors.New("primary key field ID not set")
@@ -254,7 +259,7 @@ func (gspm *PKStatsManager) ExtractPrimaryKeyColumn(insertMsg interface{}) ([]in
 		zap.Int64("fieldID", pkFieldID),
 		zap.Int("count", len(data)))
 
-	return data, nil
+	return gspm.convertToPrimaryKeys(data), nil
 }
 
 func (gspm *PKStatsManager) UpdateBloomFilterFromPrimaryKeys(vchannelName string, primaryKeys []storage.PrimaryKey, segmentID int64) {
@@ -292,4 +297,32 @@ func (gspm *PKStatsManager) LoadSealedIndex(eventData *datapb.PrimaryKeyIndexBui
 		zap.Int64("collectionID", eventData.CollectionId),
 		zap.String("vchannel", eventData.VchannelName),
 		zap.Strings("files", eventData.Files))
+}
+
+func (gspm *PKStatsManager) SegmentChange(eventData *datapb.SegmentCompactionData) {
+	gspm.mu.Lock()
+	defer gspm.mu.Unlock()
+	for _, seg := range eventData.Infos {
+		if gspm.growingSegmentPK[seg.GetInsertChannel()] != nil {
+			for _, segmentIDfrom := range seg.GetCompactionFrom() {
+				log.Info("segment change", zap.Int64("segmentID", seg.GetID()), zap.Int64("segmentIDfrom", segmentIDfrom), zap.String("vchannelName", seg.GetInsertChannel()),
+					zap.Int("length", len(gspm.growingSegmentPK[seg.GetInsertChannel()])))
+				if _, exists := gspm.growingSegmentPK[seg.GetInsertChannel()][segmentIDfrom]; exists {
+					gspm.growingSegmentPK[seg.GetInsertChannel()][seg.GetID()] = gspm.growingSegmentPK[seg.GetInsertChannel()][segmentIDfrom]
+					delete(gspm.growingSegmentPK[seg.GetInsertChannel()], segmentIDfrom)
+				}
+				log.Info("after delete segment change", zap.Int64("segmentID", seg.GetID()), zap.Int64("segmentIDfrom", segmentIDfrom), zap.String("vchannelName", seg.GetInsertChannel()),
+					zap.Int("length", len(gspm.growingSegmentPK[seg.GetInsertChannel()])))
+			}
+		}
+		if gspm.sealedIndexHandle[seg.GetInsertChannel()] != nil {
+			for _, segmentIDfrom := range seg.GetCompactionFrom() {
+				gspm.sealedIndexHandle[seg.GetInsertChannel()].ResetSegmentId(seg.GetID(), segmentIDfrom)
+				delete(gspm.growingSegmentPK[seg.GetInsertChannel()], segmentIDfrom)
+				log.Info("after delete segment change", zap.Int64("segmentID", seg.GetID()), zap.Int64("segmentIDfrom", segmentIDfrom), zap.String("vchannelName", seg.GetInsertChannel()),
+					zap.Int("length", len(gspm.growingSegmentPK[seg.GetInsertChannel()])))
+			}
+		}
+		log.Info("growingSegmentPK change done")
+	}
 }

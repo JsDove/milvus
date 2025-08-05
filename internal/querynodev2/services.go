@@ -1360,10 +1360,10 @@ func (node *QueryNode) SyncDistribution(ctx context.Context, req *querypb.SyncDi
 			action.GetType().String()))
 		switch action.GetType() {
 		case querypb.SyncType_Remove:
-			log.Info("sync action", zap.Int64("segmentID", action.SegmentID))
+			log.Info("sync action", zap.Int64("segmentID", action.SegmentID), zap.Any("SyncType_Remove", action.GetType().String()))
 			removeActions = append(removeActions, action)
 		case querypb.SyncType_Set:
-			log.Info("sync action", zap.Int64("segmentID", action.SegmentID))
+			log.Info("sync action", zap.Int64("segmentID", action.SegmentID), zap.Any("SyncType_Set", action.GetType().String()))
 			if action.GetInfo() == nil {
 				log.Warn("sync request from legacy querycoord without load info, skip")
 				continue
@@ -1394,7 +1394,8 @@ func (node *QueryNode) SyncDistribution(ctx context.Context, req *querypb.SyncDi
 				zap.Int64("TargetVersion", action.GetTargetVersion()),
 				zap.Time("checkPoint", tsoutil.PhysicalTime(action.GetCheckpoint().GetTimestamp())),
 				zap.Time("deleteCP", tsoutil.PhysicalTime(action.GetDeleteCP().GetTimestamp())),
-				zap.Int64s("partitions", req.GetLoadMeta().GetPartitionIDs()))
+				zap.Int64s("partitions", req.GetLoadMeta().GetPartitionIDs()),
+				zap.Any("SyncType_UpdateVersion", action.GetType().String()))
 			droppedInfos := lo.SliceToMap(action.GetDroppedInTarget(), func(id int64) (int64, uint64) {
 				if action.GetCheckpoint() == nil {
 					return id, typeutil.MaxTimestamp
@@ -1452,7 +1453,7 @@ func (node *QueryNode) Delete(ctx context.Context, req *querypb.DeleteRequest) (
 	}
 	defer node.lifetime.Done()
 
-	log.Debug("QueryNode received worker delete detail", zap.Stringer("info", &deleteRequestStringer{DeleteRequest: req}))
+	log.Info("QueryNode received worker delete detail", zap.Stringer("info", &deleteRequestStringer{DeleteRequest: req}))
 
 	filters := []segments.SegmentFilter{
 		segments.WithID(req.GetSegmentId()),

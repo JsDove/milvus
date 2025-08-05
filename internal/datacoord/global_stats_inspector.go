@@ -230,17 +230,18 @@ func (gsi *globalStatsInspector) calculateGlobalStatsTaskSlot(collectionID int64
 	totalSize := int64(0)
 	for _, segment := range segments {
 		if segment.GetState() == commonpb.SegmentState_Flushed {
-			totalSize += segment.GetNumOfRows()
+			totalSize += segment.GetNumOfRows() * 13
 		}
 	}
 
-	defaultSlots := int64(1)
-	if totalSize > 1000000 {
-		return max(defaultSlots*2, 1)
-	} else if totalSize > 100000 {
-		return max(defaultSlots, 1)
-	} else if totalSize > 10000 {
-		return max(defaultSlots/2, 1)
+	defaultSlots := Params.DataCoordCfg.IndexTaskSlotUsage.GetAsInt64()
+	if totalSize > 512*1024*1024 {
+		taskSlot := max(totalSize/512/1024/1024, 1) * defaultSlots
+		return max(taskSlot, 1)
+	} else if totalSize > 100*1024*1024 {
+		return max(defaultSlots/4, 1)
+	} else if totalSize > 10*1024*1024 {
+		return max(defaultSlots/16, 1)
 	}
-	return max(defaultSlots/4, 1)
+	return max(defaultSlots/64, 1)
 }

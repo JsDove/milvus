@@ -613,6 +613,31 @@ DeletePrimaryIndex(CPrimaryIndex index_handle) {
 }
 
 CStatus
+ResetSegmentId(CPrimaryIndex index_handle, int64_t to_segment_id, int64_t from_segment_id) {
+    try {
+        auto index = reinterpret_cast<milvus::index::PrimaryIndex*>(index_handle);
+        if (!index) {
+            auto status = CStatus();
+            status.error_code = UnexpectedError;
+            status.error_msg = strdup("PrimaryIndex is null");
+            return status;
+        }
+        
+        index->reset_segment_id(to_segment_id, from_segment_id);
+        
+        auto status = CStatus();
+        status.error_code = Success;
+        status.error_msg = "";
+        return status;
+    } catch (std::exception& e) {
+        auto status = CStatus();
+        status.error_code = UnexpectedError;
+        status.error_msg = strdup(e.what());
+        return status;
+    }
+}
+
+CStatus
 DeleteIndex(CIndex index) {
     SCOPE_CGO_CALL_METRIC();
 
