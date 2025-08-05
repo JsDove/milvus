@@ -29,8 +29,8 @@ type mixCompactionTask struct {
 
 	allocator allocator.Allocator
 	meta      CompactionMeta
-
-	ievm IndexEngineVersionManager
+	handler   Handler
+	ievm      IndexEngineVersionManager
 
 	times *taskcommon.Times
 
@@ -191,12 +191,14 @@ func newMixCompactionTask(t *datapb.CompactionTask,
 	allocator allocator.Allocator,
 	meta CompactionMeta,
 	ievm IndexEngineVersionManager,
+	handler Handler,
 ) *mixCompactionTask {
 	task := &mixCompactionTask{
 		allocator: allocator,
 		meta:      meta,
 		ievm:      ievm,
 		times:     taskcommon.NewTimes(),
+		handler:   handler,
 	}
 	task.taskProto.Store(t)
 	return task
@@ -238,11 +240,23 @@ func (t *mixCompactionTask) saveSegmentMeta(result *datapb.CompactionPlanResult)
 	}
 
 	err = t.updateAndSaveTaskMeta(setState(datapb.CompactionTaskState_meta_saved), setResultSegments(newSegmentIDs))
+	infos := make([]*datapb.SegmentInfo, 0, len(newSegments))
+	for _, seg := range newSegments {
+		infos = append(infos, seg.SegmentInfo)
+	}
+	data, err := proto.Marshal(&datapb.SegmentCompactionData{
+		Infos: infos,
+	})
+	if err != nil {
+		log.Error("failed to marshal event data", zap.Error(err))
+	}
+	t.handler.BroadcastEvent(datapb.EventType_SegmentCompaction, data)
 	if err != nil {
 		log.Warn("mixCompaction failed to setState meta saved", zap.Error(err))
 		return err
 	}
 	log.Info("mixCompactionTask success to save segment meta")
+
 	return nil
 }
 
@@ -399,7 +413,6 @@ func (t *mixCompactionTask) BuildCompactionRequest() (*datapb.CompactionPlan, er
 		segIDMap[segID] = segInfo.GetDeltalogs()
 		segments = append(segments, segInfo)
 	}
-
 	logIDRange, err := PreAllocateBinlogIDs(t.allocator, segments)
 	if err != nil {
 		return nil, err

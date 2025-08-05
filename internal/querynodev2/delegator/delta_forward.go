@@ -76,7 +76,8 @@ func (sd *shardDelegator) forwardStreamingDeletion(ctx context.Context, deleteDa
 	// need some experimental data to support this policy
 	switch policy := paramtable.Get().QueryNodeCfg.StreamingDeltaForwardPolicy.GetValue(); policy {
 	case ForwardPolicyDefault, StreamingForwardPolicyBF:
-		sd.forwardStreamingByBF(ctx, deleteData)
+		sd.forwardStreamingDirect(ctx, deleteData)
+		// sd.forwardStreamingByBF(ctx, deleteData)
 	case StreamingForwardPolicyDirect:
 		// forward streaming deletion without bf filtering
 		sd.forwardStreamingDirect(ctx, deleteData)
@@ -185,34 +186,68 @@ func (sd *shardDelegator) getLevel0Deltalogs(partitionID int64) []*datapb.FieldB
 
 func (sd *shardDelegator) forwardStreamingByBF(ctx context.Context, deleteData []*DeleteData) {
 	start := time.Now()
-	retMap := sd.applyBFInParallel(deleteData, segments.GetBFApplyPool())
-	// segment => delete data
-	delRecords := make(map[int64]DeleteData)
-	retMap.Range(func(key int, value *BatchApplyRet) bool {
-		startIdx := value.StartIdx
-		pk2SegmentIDs := value.Segment2Hits
 
-		pks := deleteData[value.DeleteDataIdx].PrimaryKeys
-		tss := deleteData[value.DeleteDataIdx].Timestamps
+	segmentToDeleteData := make(map[int64]DeleteData)
+	unmatchedDeleteData := make([]*DeleteData, 0)
 
-		for segmentID, hits := range pk2SegmentIDs {
-			for i, hit := range hits {
-				if hit {
-					delRecord := delRecords[segmentID]
-					delRecord.PrimaryKeys = append(delRecord.PrimaryKeys, pks[startIdx+i])
-					delRecord.Timestamps = append(delRecord.Timestamps, tss[startIdx+i])
-					delRecord.RowCount++
-					delRecords[segmentID] = delRecord
+	sealed, growing, version := sd.distribution.PinOnlineSegments()
+	defer sd.distribution.Unpin(version)
+
+	managedSegmentIDs := make(map[int64]bool)
+	for _, item := range sealed {
+		for _, seg := range item.Segments {
+			managedSegmentIDs[seg.SegmentID] = true
+		}
+	}
+	for _, seg := range growing {
+		managedSegmentIDs[seg.SegmentID] = true
+	}
+
+	log.Info("forward streaming deletion managed segmentIDs", zap.Any("managedSegmentIDs", managedSegmentIDs))
+
+	for _, data := range deleteData {
+		for i, pk := range data.PrimaryKeys {
+			if pk == nil {
+				log.Warn("found nil PrimaryKey in delete data, skipping",
+					zap.Int("index", i),
+					zap.Int64("partitionID", data.PartitionID))
+				continue
+			}
+
+			segmentID := data.SegmentIDs[i]
+			if !managedSegmentIDs[segmentID] {
+				unmatchedDeleteData = append(unmatchedDeleteData, &DeleteData{
+					PartitionID: data.PartitionID,
+					PrimaryKeys: []storage.PrimaryKey{pk},
+					Timestamps:  []uint64{data.Timestamps[i]},
+					SegmentIDs:  []int64{segmentID},
+					RowCount:    1,
+				})
+				continue
+			}
+
+			if _, ok := segmentToDeleteData[segmentID]; !ok {
+				segmentToDeleteData[segmentID] = DeleteData{
+					PartitionID: data.PartitionID,
 				}
 			}
+			delData := segmentToDeleteData[segmentID]
+			delData.PrimaryKeys = append(delData.PrimaryKeys, pk)
+			delData.Timestamps = append(delData.Timestamps, data.Timestamps[i])
+			delData.SegmentIDs = append(delData.SegmentIDs, segmentID)
+			delData.RowCount++
 		}
-		return true
-	})
+	}
+
+	if len(unmatchedDeleteData) > 0 {
+		log.Info("forward streaming deletion unmatched delete data", zap.Int("unmatchedDeleteData", len(unmatchedDeleteData)))
+		sd.forwardStreamingDirect(ctx, unmatchedDeleteData)
+	}
+
 	bfCost := time.Since(start)
 
 	offlineSegments := typeutil.NewConcurrentSet[int64]()
-
-	sealed, growing, version := sd.distribution.PinOnlineSegments()
+	sealed, growing, version = sd.distribution.PinOnlineSegments()
 
 	start = time.Now()
 	eg, ctx := errgroup.WithContext(context.Background())
@@ -230,7 +265,7 @@ func (sd *shardDelegator) forwardStreamingByBF(ctx context.Context, deleteData [
 				return nil
 			}
 			offlineSegments.Upsert(sd.applyDelete(ctx, entry.NodeID, worker, func(segmentID int64) (DeleteData, bool) {
-				data, ok := delRecords[segmentID]
+				data, ok := segmentToDeleteData[segmentID]
 				return data, ok
 			}, entry.Segments, querypb.DataScope_Historical)...)
 			return nil
@@ -248,7 +283,7 @@ func (sd *shardDelegator) forwardStreamingByBF(ctx context.Context, deleteData [
 				panic(err)
 			}
 			offlineSegments.Upsert(sd.applyDelete(ctx, paramtable.GetNodeID(), worker, func(segmentID int64) (DeleteData, bool) {
-				data, ok := delRecords[segmentID]
+				data, ok := segmentToDeleteData[segmentID]
 				return data, ok
 			}, growing, querypb.DataScope_Streaming)...)
 			return nil

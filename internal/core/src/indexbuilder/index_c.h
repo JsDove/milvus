@@ -53,6 +53,9 @@ CStatus
 QueryPrimaryIndex(CPrimaryIndex index_handle, const char* key, int64_t* result);
 
 CStatus
+ResetSegmentId(CPrimaryIndex index_handle, int64_t to_segment_id, int64_t from_segment_id);
+
+CStatus
 DeletePrimaryIndex(CPrimaryIndex index_handle);
 
 CStatus

@@ -2036,22 +2036,27 @@ func (s *Server) Watch(req *datapb.WatchRequest, stream datapb.DataCoord_WatchSe
 	if s.eventWatchers == nil {
 		s.eventWatchers = make(map[datapb.EventType][]chan *datapb.WatchResponse)
 	}
-	s.eventWatchers[req.EventType] = append(s.eventWatchers[req.EventType], ch)
+
+	for _, eventType := range req.EventTypes {
+		s.eventWatchers[eventType] = append(s.eventWatchers[eventType], ch)
+	}
 	s.eventMu.Unlock()
 
 	defer func() {
 		s.eventMu.Lock()
-		watchers := s.eventWatchers[req.EventType]
-		for i, w := range watchers {
-			if w == ch {
-				watchers = append(watchers[:i], watchers[i+1:]...)
-				break
+		for _, eventType := range req.EventTypes {
+			watchers := s.eventWatchers[eventType]
+			for i, w := range watchers {
+				if w == ch {
+					watchers = append(watchers[:i], watchers[i+1:]...)
+					break
+				}
 			}
-		}
-		if len(watchers) == 0 {
-			delete(s.eventWatchers, req.EventType)
-		} else {
-			s.eventWatchers[req.EventType] = watchers
+			if len(watchers) == 0 {
+				delete(s.eventWatchers, eventType)
+			} else {
+				s.eventWatchers[eventType] = watchers
+			}
 		}
 		s.eventMu.Unlock()
 		close(ch)
@@ -2082,7 +2087,7 @@ func (s *Server) BroadcastEvent(eventType datapb.EventType, eventData []byte) {
 		EventData: eventData,
 	}
 
-	log.Ctx(s.ctx).Info("broadcast event", zap.Any("eventType", s.eventWatchers), zap.Any("eventData", eventData))
+	log.Ctx(s.ctx).Info("broadcast event", zap.String("eventType", eventType.String()), zap.Any("eventData", eventData))
 	if watchers, ok := s.eventWatchers[eventType]; ok {
 		for _, ch := range watchers {
 			select {

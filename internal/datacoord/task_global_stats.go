@@ -148,7 +148,6 @@ func (gt *globalStatsTask) QueryTaskOnWorker(cluster session.Cluster) {
 		switch state {
 		case indexpb.JobState_JobStateFinished:
 			gt.UpdateStateWithMeta(state, result.GetFailReason())
-			// Broadcast primary key index built event
 			eventData := &datapb.PrimaryKeyIndexBuiltData{
 				CollectionId: gt.GlobalStatsTask.GetCollectionID(),
 				VchannelName: gt.GlobalStatsTask.GetVChannel(),
@@ -160,7 +159,7 @@ func (gt *globalStatsTask) QueryTaskOnWorker(cluster session.Cluster) {
 				log.Error("failed to marshal event data", zap.Error(err))
 				return
 			}
-			gt.handler.BroadcastEvent(datapb.EventType_EventType_PrimaryKeyIndexBuilt, data)
+			gt.handler.BroadcastEvent(datapb.EventType_PrimaryKeyIndexBuilt, data)
 		case indexpb.JobState_JobStateRetry, indexpb.JobState_JobStateNone:
 			gt.dropAndResetTaskOnWorker(cluster, result.GetFailReason())
 		case indexpb.JobState_JobStateFailed:

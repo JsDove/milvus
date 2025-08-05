@@ -260,6 +260,11 @@ func (h *PrimaryIndexHandle) Query(key string) (int64, error) {
 	return int64(result), nil
 }
 
+func (h *PrimaryIndexHandle) ResetSegmentId(toSegmentID, fromSegmentID int64) error {
+	status := C.ResetSegmentId(h.indexPtr, (C.int64_t)(toSegmentID), (C.int64_t)(fromSegmentID))
+	return HandleCStatus(&status, "failed to reset segment id")
+}
+
 func (h *PrimaryIndexHandle) Close() error {
 	if h.close {
 		return nil

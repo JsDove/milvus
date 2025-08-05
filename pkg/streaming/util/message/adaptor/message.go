@@ -2,9 +2,11 @@ package adaptor
 
 import (
 	"github.com/cockroachdb/errors"
+	"go.uber.org/zap"
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/msgpb"
+	"github.com/milvus-io/milvus/pkg/v2/log"
 	"github.com/milvus-io/milvus/pkg/v2/mq/msgstream"
 	"github.com/milvus-io/milvus/pkg/v2/streaming/util/message"
 	"github.com/milvus-io/milvus/pkg/v2/util/commonpbutil"
@@ -221,6 +223,11 @@ func recoverInsertMsgFromHeader(insertMsg *msgstream.InsertMsg, header *message.
 	insertMsg.Timestamps = timestamps
 	insertMsg.Base.Timestamp = timetick
 	if header.GetDeletePrimaryKeys() != nil {
+		log.Info("recoverInsertMsgFromHeader delete primary keys", zap.Int("delete primary keys", len(header.SegmentIds)))
+		timestamps1 := make([]uint64, len(header.SegmentIds))
+		for i := 0; i < len(header.SegmentIds); i++ {
+			timestamps1[i] = timetick
+		}
 		dmsg := &msgstream.DeleteMsg{
 			BaseMsg: msgstream.BaseMsg{
 				Ctx:            insertMsg.TraceCtx(),
@@ -242,8 +249,9 @@ func recoverInsertMsgFromHeader(insertMsg *msgstream.InsertMsg, header *message.
 				CollectionID:   insertMsg.CollectionID,
 				PartitionID:    insertMsg.PartitionID,
 				PrimaryKeys:    header.GetDeletePrimaryKeys(),
-				NumRows:        int64(insertMsg.GetNumRows()),
-				Timestamps:     insertMsg.GetTimestamps(),
+				NumRows:        int64(len(header.SegmentIds)),
+				Timestamps:     timestamps1,
+				SegmentIds:     header.GetSegmentIds(),
 			},
 		}
 		return []msgstream.TsMsg{dmsg, insertMsg}, nil
@@ -260,6 +268,8 @@ func recoverDeleteMsgFromHeader(deleteMsg *msgstream.DeleteMsg, header *message.
 	for i := 0; i < len(timestamps); i++ {
 		timestamps[i] = timetick
 	}
+	deleteMsg.SegmentIds = header.GetSegmentIds()
+	log.Info("recoverDeleteMsgFromHeader segmentIds", zap.Any("segmentIds", deleteMsg.SegmentIds))
 	deleteMsg.Timestamps = timestamps
 	return deleteMsg, nil
 }

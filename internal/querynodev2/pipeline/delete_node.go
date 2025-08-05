@@ -53,11 +53,13 @@ func (dNode *deleteNode) addDeleteData(deleteDatas map[UniqueID]*delegator.Delet
 	deleteData.PrimaryKeys = append(deleteData.PrimaryKeys, pks...)
 	deleteData.Timestamps = append(deleteData.Timestamps, msg.Timestamps...)
 	deleteData.RowCount += int64(len(pks))
+	deleteData.SegmentIDs = append(deleteData.SegmentIDs, msg.SegmentIds...)
 
 	log.Info("pipeline fetch delete msg",
 		zap.Int64("collectionID", dNode.collectionID),
 		zap.Int64("partitionID", msg.PartitionID),
 		zap.Int("deleteRowNum", len(pks)),
+		zap.Int("segmentIDs", len(msg.SegmentIds)),
 		zap.Uint64("timestampMin", msg.BeginTimestamp),
 		zap.Uint64("timestampMax", msg.EndTimestamp))
 }

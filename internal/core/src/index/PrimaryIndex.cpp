@@ -117,4 +117,11 @@ PrimaryIndex::query(std::string primary_key) {
     AssertInfo(is_built_, "PrimaryIndex has not been built yet");
     return primary_index_->lookup(primary_key);
 }
+
+void
+PrimaryIndex::reset_segment_id(int64_t to_segment_id, int64_t from_segment_id) {
+    primary_index_->reset_segment_id(to_segment_id, from_segment_id);
+}
+
+
 }  // namespace milvus::index

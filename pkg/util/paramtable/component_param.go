@@ -5168,7 +5168,7 @@ if param targetVecIndexVersion is not set, the default value is -1, which means 
 		Key:          "dataCoord.globalStatsTriggerInterval",
 		Version:      "2.6.0",
 		Doc:          "global stats task interval per trigger",
-		DefaultValue: "120",
+		DefaultValue: "720",
 		PanicIfEmpty: false,
 		Export:       true,
 	}

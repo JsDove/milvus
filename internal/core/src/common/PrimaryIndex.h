@@ -382,13 +382,13 @@ namespace primaryIndex
             return &bbhash_;
         }
 
-        void reset_segmentids_list(uint64_t segment_id)
+        void reset_segment_id(uint64_t to_segment_id, uint64_t from_segment_id)
         {
             for (size_t i = 0; i < segmentids_list_.size(); i++)
             {
-                if (segmentids_list_[i] == segment_id)
+                if (segmentids_list_[i] == from_segment_id)
                 {
-                    segmentids_list_[i] = -1;
+                    segmentids_list_[i] = to_segment_id;
                 }
             }
         }
