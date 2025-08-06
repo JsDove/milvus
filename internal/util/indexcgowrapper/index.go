@@ -265,6 +265,22 @@ func (h *PrimaryIndexHandle) ResetSegmentId(toSegmentID, fromSegmentID int64) er
 	return HandleCStatus(&status, "failed to reset segment id")
 }
 
+func (h *PrimaryIndexHandle) GetSegmentList() ([]int64, error) {
+	var result *C.int64_t
+	var size C.int64_t
+	status := C.GetSegmentList(h.indexPtr, &result, &size)
+	if err := HandleCStatus(&status, "failed to get segment list"); err != nil {
+		return nil, err
+	}
+	defer C.free(unsafe.Pointer(result))
+
+	segmentList := make([]int64, int(size))
+	for i := int64(0); i < int64(size); i++ {
+		segmentList[i] = int64(*(*C.int64_t)(unsafe.Pointer(uintptr(unsafe.Pointer(result)) + uintptr(i)*unsafe.Sizeof(*result))))
+	}
+	return segmentList, nil
+}
+
 func (h *PrimaryIndexHandle) Close() error {
 	if h.close {
 		return nil

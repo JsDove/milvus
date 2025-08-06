@@ -263,10 +263,8 @@ func (impl *shardInterceptor) handleDeleteMessage(ctx context.Context, msg messa
 	if resource.Resource().PrimaryIndexManager() != nil {
 		body, _ := deleteMessage.Body()
 		pks := storage.ParseIDs2PrimaryKeys(body.GetPrimaryKeys())
-		duplicateKeys, segmentIDs := resource.Resource().PrimaryIndexManager().CheckDuplicatePrimaryKeys(body.GetShardName(), pks)
-		body.PrimaryKeys = duplicateKeys
+		_, segmentIDs := resource.Resource().PrimaryIndexManager().CheckDuplicatePrimaryKeys(body.GetShardName(), pks)
 		header.SegmentIds = segmentIDs
-		log.Info("handleDeleteMessage pks", zap.Any("pks", body.GetPrimaryKeys()), zap.Any("segmentIDs", segmentIDs))
 	}
 
 	if err := impl.shardManager.CheckIfCollectionExists(header.GetCollectionId()); err != nil {

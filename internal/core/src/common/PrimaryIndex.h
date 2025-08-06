@@ -277,7 +277,7 @@ namespace primaryIndex
         // BBHash component
         boomphf::mphf<Hasher_t> bbhash_;
 
-        std::vector<uint64_t> segmentids_list_;
+        std::vector<int64_t> segmentids_list_;
 
         // Bit-packed array for value_array_ to save memory
         BitPackedArray value_array_;
@@ -391,6 +391,11 @@ namespace primaryIndex
                     segmentids_list_[i] = to_segment_id;
                 }
             }
+        }
+
+        std::vector<int64_t> get_segment_list() const
+        {
+            return segmentids_list_;
         }
 
         double calculate_segmentid_invalid_percentage() const

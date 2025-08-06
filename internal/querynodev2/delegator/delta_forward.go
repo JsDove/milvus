@@ -77,7 +77,6 @@ func (sd *shardDelegator) forwardStreamingDeletion(ctx context.Context, deleteDa
 	switch policy := paramtable.Get().QueryNodeCfg.StreamingDeltaForwardPolicy.GetValue(); policy {
 	case ForwardPolicyDefault, StreamingForwardPolicyBF:
 		sd.forwardStreamingDirect(ctx, deleteData)
-		// sd.forwardStreamingByBF(ctx, deleteData)
 	case StreamingForwardPolicyDirect:
 		// forward streaming deletion without bf filtering
 		sd.forwardStreamingDirect(ctx, deleteData)
@@ -203,8 +202,6 @@ func (sd *shardDelegator) forwardStreamingByBF(ctx context.Context, deleteData [
 		managedSegmentIDs[seg.SegmentID] = true
 	}
 
-	log.Info("forward streaming deletion managed segmentIDs", zap.Any("managedSegmentIDs", managedSegmentIDs))
-
 	for _, data := range deleteData {
 		for i, pk := range data.PrimaryKeys {
 			if pk == nil {
@@ -231,14 +228,16 @@ func (sd *shardDelegator) forwardStreamingByBF(ctx context.Context, deleteData [
 					PartitionID: data.PartitionID,
 				}
 			}
+
 			delData := segmentToDeleteData[segmentID]
 			delData.PrimaryKeys = append(delData.PrimaryKeys, pk)
 			delData.Timestamps = append(delData.Timestamps, data.Timestamps[i])
 			delData.SegmentIDs = append(delData.SegmentIDs, segmentID)
 			delData.RowCount++
+			segmentToDeleteData[segmentID] = delData
 		}
 	}
-
+	log.Info("forward streaming deletion segmentToDeleteData", zap.Int("segmentToDeleteData", len(segmentToDeleteData)))
 	if len(unmatchedDeleteData) > 0 {
 		log.Info("forward streaming deletion unmatched delete data", zap.Int("unmatchedDeleteData", len(unmatchedDeleteData)))
 		sd.forwardStreamingDirect(ctx, unmatchedDeleteData)

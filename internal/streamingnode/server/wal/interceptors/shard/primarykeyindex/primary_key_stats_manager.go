@@ -11,7 +11,6 @@ import (
 	"github.com/milvus-io/milvus/pkg/v2/common"
 	"github.com/milvus-io/milvus/pkg/v2/proto/datapb"
 	"github.com/milvus-io/milvus/pkg/v2/proto/indexcgopb"
-	"github.com/milvus-io/milvus/pkg/v2/util/paramtable"
 
 	"github.com/milvus-io/milvus/pkg/v2/log"
 	"github.com/pkg/errors"
@@ -40,7 +39,7 @@ func (gspm *PKStatsManager) createSegmentStats(vchannelName string, segmentID in
 		gspm.growingSegmentPK[vchannelName] = make(map[int64]*storage.PrimaryKeyStats)
 	}
 
-	stats, err := storage.NewPrimaryKeyStats(pkFieldID, pkType, paramtable.Get().DataNodeCfg.BinLogMaxSize.GetAsInt64())
+	stats, err := storage.NewPrimaryKeyStats(pkFieldID, pkType, 200000)
 	if err != nil {
 		log.Error("failed to create primary key stats for segment",
 			zap.Int64("segmentID", segmentID),
@@ -293,6 +292,19 @@ func (gspm *PKStatsManager) LoadSealedIndex(eventData *datapb.PrimaryKeyIndexBui
 
 	gspm.sealedIndexHandle[eventData.VchannelName] = handle
 
+	segmentList, err := handle.GetSegmentList()
+	if err != nil {
+		log.Error("failed to get segment list", zap.Error(err))
+		return
+	}
+	for _, segmentID := range segmentList {
+		if _, exists := gspm.growingSegmentPK[eventData.VchannelName][segmentID]; exists {
+			log.Info("delete growing segment pk", zap.Int64("segmentID", segmentID), zap.String("vchannelName", eventData.VchannelName), zap.Int("length", len(gspm.growingSegmentPK[eventData.VchannelName])))
+			delete(gspm.growingSegmentPK[eventData.VchannelName], segmentID)
+			log.Info("after delete growing segment pk", zap.Int64("segmentID", segmentID), zap.String("vchannelName", eventData.VchannelName), zap.Int("length", len(gspm.growingSegmentPK[eventData.VchannelName])), zap.Int("length", len(gspm.growingSegmentPK[eventData.VchannelName])))
+		}
+	}
+
 	log.Info("loaded sealed segment index",
 		zap.Int64("collectionID", eventData.CollectionId),
 		zap.String("vchannel", eventData.VchannelName),
@@ -318,9 +330,6 @@ func (gspm *PKStatsManager) SegmentChange(eventData *datapb.SegmentCompactionDat
 		if gspm.sealedIndexHandle[seg.GetInsertChannel()] != nil {
 			for _, segmentIDfrom := range seg.GetCompactionFrom() {
 				gspm.sealedIndexHandle[seg.GetInsertChannel()].ResetSegmentId(seg.GetID(), segmentIDfrom)
-				delete(gspm.growingSegmentPK[seg.GetInsertChannel()], segmentIDfrom)
-				log.Info("after delete segment change", zap.Int64("segmentID", seg.GetID()), zap.Int64("segmentIDfrom", segmentIDfrom), zap.String("vchannelName", seg.GetInsertChannel()),
-					zap.Int("length", len(gspm.growingSegmentPK[seg.GetInsertChannel()])))
 			}
 		}
 		log.Info("growingSegmentPK change done")
