@@ -269,7 +269,7 @@ func recoverDeleteMsgFromHeader(deleteMsg *msgstream.DeleteMsg, header *message.
 		timestamps[i] = timetick
 	}
 	deleteMsg.SegmentIds = header.GetSegmentIds()
-	log.Info("recoverDeleteMsgFromHeader segmentIds", zap.Any("segmentIds", deleteMsg.SegmentIds))
+	log.Info("recoverDeleteMsgFromHeader segmentIds", zap.Int("segmentIds", len(deleteMsg.SegmentIds)), zap.Int("timestamps", len(deleteMsg.Timestamps)))
 	deleteMsg.Timestamps = timestamps
 	return deleteMsg, nil
 }

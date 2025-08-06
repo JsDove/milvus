@@ -56,6 +56,9 @@ CStatus
 ResetSegmentId(CPrimaryIndex index_handle, int64_t to_segment_id, int64_t from_segment_id);
 
 CStatus
+GetSegmentList(CPrimaryIndex index_handle, int64_t** result, int64_t* size);
+
+CStatus
 DeletePrimaryIndex(CPrimaryIndex index_handle);
 
 CStatus

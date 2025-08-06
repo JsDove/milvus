@@ -393,6 +393,7 @@ func registerDataNodeOnce(registry *prometheus.Registry) {
 	registry.MustRegister(DataNodeIndexTaskLatencyInQueue)
 	registry.MustRegister(DataNodeBuildIndexLatency)
 	registry.MustRegister(DataNodeBuildJSONStatsLatency)
+	registry.MustRegister(DataNodeBuildPrimaryKeyStatsLatency)
 	registry.MustRegister(DataNodeSlot)
 }
 

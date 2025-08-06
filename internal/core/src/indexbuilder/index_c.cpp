@@ -638,6 +638,45 @@ ResetSegmentId(CPrimaryIndex index_handle, int64_t to_segment_id, int64_t from_s
 }
 
 CStatus
+GetSegmentList(CPrimaryIndex index_handle, int64_t** result, int64_t* size) {
+    try {
+        auto index = reinterpret_cast<milvus::index::PrimaryIndex*>(index_handle);
+        if (!index) {
+            auto status = CStatus();
+            status.error_code = UnexpectedError;
+            status.error_msg = strdup("PrimaryIndex is null");
+            return status;
+        }
+        
+        auto segment_list = index->get_segment_list();
+        *size = segment_list.size();
+        
+        if (*size > 0) {
+            *result = static_cast<int64_t*>(malloc(*size * sizeof(int64_t)));
+            if (!*result) {
+                auto status = CStatus();
+                status.error_code = UnexpectedError;
+                status.error_msg = strdup("Failed to allocate memory for segment list");
+                return status;
+            }
+            std::copy(segment_list.begin(), segment_list.end(), *result);
+        } else {
+            *result = nullptr;
+        }
+        
+        auto status = CStatus();
+        status.error_code = Success;
+        status.error_msg = "";
+        return status;
+    } catch (std::exception& e) {
+        auto status = CStatus();
+        status.error_code = UnexpectedError;
+        status.error_msg = strdup(e.what());
+        return status;
+    }
+}
+
+CStatus
 DeleteIndex(CIndex index) {
     SCOPE_CGO_CALL_METRIC();
 

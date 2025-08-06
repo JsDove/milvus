@@ -54,6 +54,9 @@ class PrimaryIndex  {
     void
     reset_segment_id(int64_t to_segment_id, int64_t from_segment_id);
 
+    std::vector<int64_t>
+    get_segment_list();
+
  private:
     std::string path_;
     std::shared_ptr<storage::MemFileManagerImpl> mem_file_manager_;

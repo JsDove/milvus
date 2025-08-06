@@ -123,5 +123,10 @@ PrimaryIndex::reset_segment_id(int64_t to_segment_id, int64_t from_segment_id) {
     primary_index_->reset_segment_id(to_segment_id, from_segment_id);
 }
 
+std::vector<int64_t>
+PrimaryIndex::get_segment_list() {
+    return primary_index_->get_segment_list();
+}
+
 
 }  // namespace milvus::index
