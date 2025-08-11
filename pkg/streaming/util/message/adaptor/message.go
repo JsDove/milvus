@@ -223,7 +223,7 @@ func recoverInsertMsgFromHeader(insertMsg *msgstream.InsertMsg, header *message.
 	insertMsg.Timestamps = timestamps
 	insertMsg.Base.Timestamp = timetick
 	if header.GetDeletePrimaryKeys() != nil {
-		log.Info("recoverInsertMsgFromHeader delete primary keys", zap.Int("delete primary keys", len(header.SegmentIds)))
+		log.Debug("recoverInsertMsgFromHeader delete primary keys", zap.Int("delete primary keys", len(header.SegmentIds)))
 		timestamps1 := make([]uint64, len(header.SegmentIds))
 		for i := 0; i < len(header.SegmentIds); i++ {
 			timestamps1[i] = timetick
@@ -269,7 +269,7 @@ func recoverDeleteMsgFromHeader(deleteMsg *msgstream.DeleteMsg, header *message.
 		timestamps[i] = timetick
 	}
 	deleteMsg.SegmentIds = header.GetSegmentIds()
-	log.Info("recoverDeleteMsgFromHeader segmentIds", zap.Int("segmentIds", len(deleteMsg.SegmentIds)), zap.Int("timestamps", len(deleteMsg.Timestamps)))
+	log.Debug("recoverDeleteMsgFromHeader segmentIds", zap.Int("segmentIds", len(deleteMsg.SegmentIds)), zap.Int("timestamps", len(deleteMsg.Timestamps)))
 	deleteMsg.Timestamps = timestamps
 	return deleteMsg, nil
 }

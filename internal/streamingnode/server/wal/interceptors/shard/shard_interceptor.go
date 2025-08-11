@@ -8,7 +8,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
-	"github.com/milvus-io/milvus/internal/storage"
 	"github.com/milvus-io/milvus/internal/streamingnode/server/resource"
 	"github.com/milvus-io/milvus/internal/streamingnode/server/wal/interceptors"
 	"github.com/milvus-io/milvus/internal/streamingnode/server/wal/interceptors/redo"
@@ -171,29 +170,29 @@ func (impl *shardInterceptor) handleDropPartition(ctx context.Context, msg messa
 func (impl *shardInterceptor) handleInsertMessage(ctx context.Context, msg message.MutableMessage, appendOp interceptors.Append) (message.MessageID, error) {
 	insertMsg := message.MustAsMutableInsertMessageV1(msg)
 	header := insertMsg.Header()
-	body, _ := insertMsg.Body()
-	var pks []storage.PrimaryKey
-	if resource.Resource().PrimaryIndexManager() != nil {
-		var err error
-		pks, err = resource.Resource().PrimaryIndexManager().ExtractPrimaryKeyColumn(insertMsg)
-		if err == nil {
-			duplicateKeys, segmentIDs := resource.Resource().PrimaryIndexManager().CheckDuplicatePrimaryKeys(body.GetShardName(), pks)
-			if duplicateKeys != nil {
-				switch duplicateKeys.GetIdField().(type) {
-				case *schemapb.IDs_IntId:
-					if len(duplicateKeys.GetIntId().GetData()) > 0 {
-						header.DeletePrimaryKeys = duplicateKeys
-						header.SegmentIds = segmentIDs
-					}
-				case *schemapb.IDs_StrId:
-					if len(duplicateKeys.GetStrId().GetData()) > 0 {
-						header.DeletePrimaryKeys = duplicateKeys
-						header.SegmentIds = segmentIDs
-					}
-				}
-			}
-		}
-	}
+	// body, _ := insertMsg.Body()
+	// var pks []storage.PrimaryKey
+	// if resource.Resource().PrimaryIndexManager() != nil {
+	// 	var err error
+	// 	pks, err = resource.Resource().PrimaryIndexManager().ExtractPrimaryKeyColumn(insertMsg)
+	// 	if err == nil {
+	// 		duplicateKeys, segmentIDs := resource.Resource().PrimaryIndexManager().CheckDuplicatePrimaryKeys(body.GetShardName(), pks)
+	// 		if duplicateKeys != nil {
+	// 			switch duplicateKeys.GetIdField().(type) {
+	// 			case *schemapb.IDs_IntId:
+	// 				if len(duplicateKeys.GetIntId().GetData()) > 0 {
+	// 					header.DeletePrimaryKeys = duplicateKeys
+	// 					header.SegmentIds = segmentIDs
+	// 				}
+	// 			case *schemapb.IDs_StrId:
+	// 				if len(duplicateKeys.GetStrId().GetData()) > 0 {
+	// 					header.DeletePrimaryKeys = duplicateKeys
+	// 					header.SegmentIds = segmentIDs
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	// Assign segment for insert message.
 	// !!! Current implementation a insert message only has one parition, but we need to merge the message for partition-key in future.
@@ -247,9 +246,9 @@ func (impl *shardInterceptor) handleInsertMessage(ctx context.Context, msg messa
 			SegmentId: result.SegmentID,
 		}
 
-		if resource.Resource().PrimaryIndexManager() != nil {
-			resource.Resource().PrimaryIndexManager().UpdateBloomFilterFromPrimaryKeys(body.GetShardName(), pks, result.SegmentID)
-		}
+		// if resource.Resource().PrimaryIndexManager() != nil {
+		// 	resource.Resource().PrimaryIndexManager().UpdateBloomFilterFromPrimaryKeys(body.GetShardName(), pks, result.SegmentID)
+		// }
 	}
 	// Update the insert message headers.
 	insertMsg.OverwriteHeader(header)
@@ -260,12 +259,12 @@ func (impl *shardInterceptor) handleInsertMessage(ctx context.Context, msg messa
 func (impl *shardInterceptor) handleDeleteMessage(ctx context.Context, msg message.MutableMessage, appendOp interceptors.Append) (message.MessageID, error) {
 	deleteMessage := message.MustAsMutableDeleteMessageV1(msg)
 	header := deleteMessage.Header()
-	if resource.Resource().PrimaryIndexManager() != nil {
-		body, _ := deleteMessage.Body()
-		pks := storage.ParseIDs2PrimaryKeys(body.GetPrimaryKeys())
-		_, segmentIDs := resource.Resource().PrimaryIndexManager().CheckDuplicatePrimaryKeys(body.GetShardName(), pks)
-		header.SegmentIds = segmentIDs
-	}
+	// if resource.Resource().PrimaryIndexManager() != nil {
+	// 	body, _ := deleteMessage.Body()
+	// 	pks := storage.ParseIDs2PrimaryKeys(body.GetPrimaryKeys())
+	// 	_, segmentIDs := resource.Resource().PrimaryIndexManager().CheckDuplicatePrimaryKeys(body.GetShardName(), pks)
+	// 	header.SegmentIds = segmentIDs
+	// }
 
 	if err := impl.shardManager.CheckIfCollectionExists(header.GetCollectionId()); err != nil {
 		// The collection can not be deleted at current shard, ignored
