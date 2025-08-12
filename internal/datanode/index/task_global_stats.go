@@ -154,22 +154,6 @@ func (gt *globalStatsTask) Execute(ctx context.Context) error {
 		zap.Int("numSegments", len(segmentInfos)),
 		zap.Any("storageConfig", gt.req.GetStorageConfig()))
 
-	allPrimaryKeys := make([]interface{}, 0)
-
-	for _, seg := range segmentInfos {
-		segmentPKs, err := gt.readSegmentPrimaryKeys(ctx, seg, pkField)
-		if err != nil {
-			log.Ctx(ctx).Error("failed to read segment primary keys",
-				zap.Int64("segmentID", seg.GetID()),
-				zap.Error(err))
-			return err
-		}
-
-		allPrimaryKeys = append(allPrimaryKeys, segmentPKs...)
-	}
-
-	log.Ctx(ctx).Info("collected all primary keys", zap.Int("totalCount", len(allPrimaryKeys)))
-
 	segmentPrimaryKeysMap := make(map[int64][]string)
 	for _, seg := range segmentInfos {
 		segmentPKs, err := gt.readSegmentPrimaryKeys(ctx, seg, pkField)
@@ -202,7 +186,6 @@ func (gt *globalStatsTask) Execute(ctx context.Context) error {
 			PrimaryKeys: pks,
 		})
 	}
-
 	newStorageConfig, err := ParseStorageConfig(gt.req.GetStorageConfig())
 	if err != nil {
 		return err
@@ -263,6 +246,7 @@ func (gt *globalStatsTask) readSegmentPrimaryKeys(ctx context.Context, seg *data
 		storage.WithDownloader(gt.binlogIO.Download),
 		storage.WithVersion(seg.GetStorageVersion()),
 		storage.WithStorageConfig(storageConfig),
+		storage.WithNeededFields(typeutil.NewSet(pkField.FieldID)),
 	)
 	if err != nil {
 		log.Ctx(ctx).Warn("failed to new insert binlogs reader", zap.Error(err))
