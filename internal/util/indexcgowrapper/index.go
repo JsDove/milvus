@@ -189,7 +189,7 @@ func CreateJSONKeyStats(ctx context.Context, buildIndexInfo *indexcgopb.BuildInd
 func BuildPrimaryKeyIndex(ctx context.Context, buildIndexInfo *indexcgopb.BuildPrimaryIndexInfo) (map[string]int64, error) {
 	buildIndexInfoBlob, err := proto.Marshal(buildIndexInfo)
 	if err != nil {
-		log.Ctx(ctx).Warn("marshal buildIndexInfo failed",
+		log.Ctx(ctx).Warn("marshal buildPrimaryKeyIndex failed",
 			zap.String("clusterID", buildIndexInfo.GetClusterID()),
 			zap.Int64("buildID", buildIndexInfo.GetBuildID()),
 			zap.Error(err))
@@ -223,7 +223,7 @@ type PrimaryIndexHandle struct {
 func LoadPrimaryIndex(ctx context.Context, loadIndexInfo *indexcgopb.LoadPrimaryIndexInfo) (*PrimaryIndexHandle, error) {
 	loadIndexInfoBlob, err := proto.Marshal(loadIndexInfo)
 	if err != nil {
-		log.Ctx(ctx).Warn("marshal loadIndexInfo failed",
+		log.Ctx(ctx).Warn("marshal loadPrimaryIndex failed",
 			zap.Int64("buildID", loadIndexInfo.GetBuildID()),
 			zap.Error(err))
 		return nil, err

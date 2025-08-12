@@ -125,7 +125,6 @@ func (gt *globalStatsTask) PreExecute(ctx context.Context) error {
 		zap.Int64("collectionID", gt.req.GetCollectionID()),
 		zap.Int64("partitionID", gt.req.GetPartitionID()),
 		zap.Int64("preExecuteRecordSpan(ms)", preExecuteRecordSpan.Milliseconds()),
-		zap.Any("storageConfig", gt.req.StorageConfig),
 	)
 	return nil
 }
@@ -142,17 +141,12 @@ func (gt *globalStatsTask) Execute(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	log.Ctx(ctx).Info("pkField", zap.Any("pkField", pkField))
 
 	segmentInfos := gt.req.GetSegmentInfos()
 	if len(segmentInfos) == 0 {
 		log.Ctx(ctx).Warn("no segment infos provided in request")
 		return nil
 	}
-
-	log.Ctx(ctx).Info("received segment infos",
-		zap.Int("numSegments", len(segmentInfos)),
-		zap.Any("storageConfig", gt.req.GetStorageConfig()))
 
 	segmentPrimaryKeysMap := make(map[int64][]string)
 	for _, seg := range segmentInfos {
@@ -207,7 +201,6 @@ func (gt *globalStatsTask) Execute(ctx context.Context) error {
 	for file := range uploaded {
 		files = append(files, file)
 	}
-	log.Ctx(ctx).Info("files", zap.Any("files", files))
 	gt.manager.StoreGlobalStatsFiles(gt.req.GetClusterID(), gt.req.GetTaskID(), files)
 
 	totalElapse := gt.tr.RecordSpan()
@@ -268,7 +261,7 @@ func (gt *globalStatsTask) readSegmentPrimaryKeys(ctx context.Context, seg *data
 		}
 
 		pkArray := r.Column(pkField.FieldID)
-
+		log.Ctx(ctx).Info("readSegmentPrimaryKeys pkArray", zap.Any("pkArray", pkArray))
 		for i := range r.Len() {
 			var pk interface{}
 			switch pkField.DataType {
@@ -282,6 +275,7 @@ func (gt *globalStatsTask) readSegmentPrimaryKeys(ctx context.Context, seg *data
 			}
 			primaryKeys = append(primaryKeys, pk)
 		}
+		log.Ctx(ctx).Info("readSegmentPrimaryKeys primaryKeys", zap.Any("primaryKeys", primaryKeys))
 	}
 	return primaryKeys, nil
 }
