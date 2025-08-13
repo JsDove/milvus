@@ -303,35 +303,6 @@ namespace boomphf
             done_threaded[tid] += ntasks_done;
             while (partial_threaded[tid] >= steps)
             {
-                if (timer_mode)
-                {
-                    struct timeval timet;
-                    double now;
-                    gettimeofday(&timet, NULL);
-                    now = timet.tv_sec + (timet.tv_usec / 1000000.0);
-                    uint64_t total_done = 0;
-                    for (int ii = 0; ii < _nthreads; ii++)
-                        total_done += (done_threaded[ii]);
-                    double elapsed = now - heure_debut;
-                    double speed = total_done / elapsed;
-                    double rem = (todo - total_done) / speed;
-                    if (total_done > todo)
-                        rem = 0;
-                    int min_e = (int)(elapsed / 60);
-                    elapsed -= min_e * 60;
-                    int min_r = (int)(rem / 60);
-                    rem -= min_r * 60;
-
-                    fprintf(stderr, "%c[%s]  %-5.3g%%   elapsed: %3i min %-2.0f sec   remaining: %3i min %-2.0f sec", 13,
-                            message.c_str(),
-                            100 * (double)total_done / todo,
-                            min_e, elapsed, min_r, rem);
-                }
-                else
-                {
-                    fprintf(stderr, "-");
-                    fflush(stderr);
-                }
                 partial_threaded[tid] -= steps;
             }
         }

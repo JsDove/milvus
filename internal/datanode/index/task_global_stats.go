@@ -228,11 +228,6 @@ func (gt *globalStatsTask) readSegmentPrimaryKeys(ctx context.Context, seg *data
 		bucketName = paramtable.Get().ServiceParam.MinioCfg.BucketName.GetValue()
 	}
 
-	log.Ctx(ctx).Info("creating binlog reader",
-		zap.Int64("segmentID", seg.GetID()),
-		zap.String("bucketName", bucketName),
-		zap.Int("numBinlogs", len(seg.GetBinlogs())))
-
 	reader, err := storage.NewBinlogRecordReader(ctx,
 		seg.GetBinlogs(),
 		gt.req.GetSchema(),
@@ -261,7 +256,6 @@ func (gt *globalStatsTask) readSegmentPrimaryKeys(ctx context.Context, seg *data
 		}
 
 		pkArray := r.Column(pkField.FieldID)
-		log.Ctx(ctx).Info("readSegmentPrimaryKeys pkArray", zap.Any("pkArray", pkArray))
 		for i := range r.Len() {
 			var pk interface{}
 			switch pkField.DataType {
@@ -275,7 +269,6 @@ func (gt *globalStatsTask) readSegmentPrimaryKeys(ctx context.Context, seg *data
 			}
 			primaryKeys = append(primaryKeys, pk)
 		}
-		log.Ctx(ctx).Info("readSegmentPrimaryKeys primaryKeys", zap.Any("primaryKeys", primaryKeys))
 	}
 	return primaryKeys, nil
 }

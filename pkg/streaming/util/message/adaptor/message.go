@@ -264,13 +264,15 @@ func recoverDeleteMsgFromHeader(deleteMsg *msgstream.DeleteMsg, header *message.
 	if deleteMsg.GetCollectionID() != header.GetCollectionId() {
 		panic("unreachable code, collection id is not equal")
 	}
-	timestamps := make([]uint64, len(deleteMsg.Timestamps))
+	timestamps := make([]uint64, len(header.GetSegmentIds()))
 	for i := 0; i < len(timestamps); i++ {
 		timestamps[i] = timetick
 	}
 	deleteMsg.SegmentIds = header.GetSegmentIds()
-	log.Debug("recoverDeleteMsgFromHeader segmentIds", zap.Int("segmentIds", len(deleteMsg.SegmentIds)), zap.Int("timestamps", len(deleteMsg.Timestamps)))
+	deleteMsg.PrimaryKeys = header.GetDeletePrimaryKeys()
 	deleteMsg.Timestamps = timestamps
+	deleteMsg.NumRows = int64(len(header.GetSegmentIds()))
+	log.Info("recoverDeleteMsgFromHeader segmentIds", zap.Int("segmentIds", len(deleteMsg.SegmentIds)), zap.Int("timestamps", len(deleteMsg.Timestamps)))
 	return deleteMsg, nil
 }
 

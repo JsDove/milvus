@@ -260,18 +260,20 @@ func (impl *shardInterceptor) handleInsertMessage(ctx context.Context, msg messa
 func (impl *shardInterceptor) handleDeleteMessage(ctx context.Context, msg message.MutableMessage, appendOp interceptors.Append) (message.MessageID, error) {
 	deleteMessage := message.MustAsMutableDeleteMessageV1(msg)
 	header := deleteMessage.Header()
+	var pks []storage.PrimaryKey
 	if resource.Resource().PrimaryIndexManager() != nil {
 		body, _ := deleteMessage.Body()
-		pks := storage.ParseIDs2PrimaryKeys(body.GetPrimaryKeys())
-		_, segmentIDs := resource.Resource().PrimaryIndexManager().CheckDuplicatePrimaryKeys(body.GetShardName(), pks)
+		pks = storage.ParseIDs2PrimaryKeys(body.GetPrimaryKeys())
+		duplicateKeys, segmentIDs := resource.Resource().PrimaryIndexManager().CheckDuplicatePrimaryKeys(body.GetShardName(), pks)
 		header.SegmentIds = segmentIDs
+		header.DeletePrimaryKeys = duplicateKeys
 	}
 
 	if err := impl.shardManager.CheckIfCollectionExists(header.GetCollectionId()); err != nil {
 		// The collection can not be deleted at current shard, ignored
 		return nil, status.NewUnrecoverableError(err.Error())
 	}
-
+	log.Info("shardInterceptor handleDeleteMessage", zap.Int("segmentIDs", len(header.GetSegmentIds())), zap.Int("primaryKeys", len(pks)))
 	impl.shardManager.ApplyDelete(deleteMessage)
 	deleteMessage.OverwriteHeader(header)
 	return appendOp(ctx, msg)
