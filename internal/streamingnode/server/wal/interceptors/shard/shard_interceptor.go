@@ -93,7 +93,7 @@ func (impl *shardInterceptor) handleCreateCollection(ctx context.Context, msg me
 		impl.shardManager.Logger().Error("failed to unmarshal collection schema", zap.Error(err))
 		return msgID, err
 	}
-
+	log.Info("create collection schema", zap.Any("schema", schema))
 	for _, field := range schema.Fields {
 		if field.IsPrimaryKey {
 			impl.pkFieldID = field.FieldID
@@ -264,18 +264,18 @@ func (impl *shardInterceptor) handleDeleteMessage(ctx context.Context, msg messa
 	if resource.Resource().PrimaryIndexManager() != nil {
 		body, _ := deleteMessage.Body()
 		pks = storage.ParseIDs2PrimaryKeys(body.GetPrimaryKeys())
-		duplicateKeys, segmentIDs := resource.Resource().PrimaryIndexManager().CheckDuplicatePrimaryKeys(body.GetShardName(), pks)
+		deletePks, segmentIDs := resource.Resource().PrimaryIndexManager().CheckDuplicatePrimaryKeys(body.GetShardName(), pks)
 		header.SegmentIds = segmentIDs
-		header.DeletePrimaryKeys = duplicateKeys
+		header.DeletePrimaryKeys = deletePks
 	}
 
 	if err := impl.shardManager.CheckIfCollectionExists(header.GetCollectionId()); err != nil {
 		// The collection can not be deleted at current shard, ignored
 		return nil, status.NewUnrecoverableError(err.Error())
 	}
-	log.Info("shardInterceptor handleDeleteMessage", zap.Int("segmentIDs", len(header.GetSegmentIds())), zap.Int("primaryKeys", len(pks)))
 	impl.shardManager.ApplyDelete(deleteMessage)
 	deleteMessage.OverwriteHeader(header)
+	log.Info("shardInterceptor handleDeleteMessage", zap.Int("segmentIDs", len(header.GetSegmentIds())), zap.Int("primaryKeys", len(pks)))
 	return appendOp(ctx, msg)
 }
 

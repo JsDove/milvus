@@ -55,22 +55,6 @@ func (gspm *PKStatsManager) createSegmentStats(vchannelName string, segmentID in
 	return stats
 }
 
-func (gspm *PKStatsManager) UpdatePrimaryKey(vchannelName string, segmentID int64, pk storage.PrimaryKey) error {
-	gspm.mu.Lock()
-	defer gspm.mu.Unlock()
-
-	stats, exists := gspm.growingSegmentPK[vchannelName][segmentID]
-	if !exists {
-		stats = gspm.createSegmentStats(vchannelName, segmentID, gspm.pkFieldID, gspm.pkType)
-		if stats == nil {
-			return errors.New("failed to create primary key stats for segment")
-		}
-	}
-
-	stats.Update(pk)
-	return nil
-}
-
 func (gspm *PKStatsManager) BatchUpdatePrimaryKeys(vchannelName string, segmentID int64, pks []storage.PrimaryKey) error {
 	gspm.mu.Lock()
 	defer gspm.mu.Unlock()
@@ -141,7 +125,6 @@ func (gspm *PKStatsManager) CheckDuplicatePrimaryKeys(vchannelName string, pks [
 					log.Debug("check duplicate primary keys", zap.Any("pk", pk), zap.Int64("segmentID", segmentID))
 					duplicates = append(duplicates, pk)
 					segmentIDs = append(segmentIDs, segmentID)
-					continue
 				}
 			}
 		}
@@ -158,6 +141,7 @@ func (gspm *PKStatsManager) CheckDuplicatePrimaryKeys(vchannelName string, pks [
 			}
 		}
 	}
+	log.Info("check duplicate primary keys", zap.Int("duplicates", len(duplicates)), zap.Int("segmentIDs", len(segmentIDs)))
 	ids := storage.ParsePrimaryKeys2IDs(duplicates)
 	return ids, segmentIDs
 }
