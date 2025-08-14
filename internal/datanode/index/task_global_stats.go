@@ -262,7 +262,8 @@ func (gt *globalStatsTask) readSegmentPrimaryKeys(ctx context.Context, seg *data
 			case schemapb.DataType_Int64:
 				pk = pkArray.(*array.Int64).Value(i)
 			case schemapb.DataType_VarChar:
-				pk = pkArray.(*array.String).Value(i)
+				s := pkArray.(*array.String).Value(i)
+				pk = string([]byte(s))
 			default:
 				log.Ctx(ctx).Warn("unsupported primary key data type", zap.String("dataType", pkField.DataType.String()))
 				continue
