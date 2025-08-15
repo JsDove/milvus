@@ -76,7 +76,7 @@ func (sd *shardDelegator) forwardStreamingDeletion(ctx context.Context, deleteDa
 	// need some experimental data to support this policy
 	switch policy := paramtable.Get().QueryNodeCfg.StreamingDeltaForwardPolicy.GetValue(); policy {
 	case ForwardPolicyDefault, StreamingForwardPolicyBF:
-		sd.forwardStreamingByBF(ctx, deleteData)
+		sd.forwardStreamingBySegmentIds(ctx, deleteData)
 	case StreamingForwardPolicyDirect:
 		// forward streaming deletion without bf filtering
 		sd.forwardStreamingDirect(ctx, deleteData)
@@ -271,12 +271,10 @@ func (sd *shardDelegator) forwardStreamingByBF(ctx context.Context, deleteData [
 
 func (sd *shardDelegator) forwardStreamingBySegmentIds(ctx context.Context, deleteData []*DeleteData) {
 	start := time.Now()
-
 	segmentToDeleteData := make(map[int64]DeleteData)
-	unmatchedDeleteData := make([]*DeleteData, 0)
+	unmatchedByPartition := make(map[int64]*DeleteData)
 
 	sealed, growing, version := sd.distribution.PinOnlineSegments()
-	defer sd.distribution.Unpin(version)
 
 	managedSegmentIDs := make(map[int64]bool)
 	for _, item := range sealed {
@@ -290,39 +288,59 @@ func (sd *shardDelegator) forwardStreamingBySegmentIds(ctx context.Context, dele
 
 	for _, data := range deleteData {
 		for i, pk := range data.PrimaryKeys {
-			if pk == nil {
-				log.Warn("found nil PrimaryKey in delete data, skipping",
-					zap.Int("index", i),
-					zap.Int64("partitionID", data.PartitionID))
-				continue
-			}
-
 			segmentID := data.SegmentIDs[i]
 			if !managedSegmentIDs[segmentID] {
-				unmatchedDeleteData = append(unmatchedDeleteData, &DeleteData{
-					PartitionID: data.PartitionID,
-					PrimaryKeys: []storage.PrimaryKey{pk},
-					Timestamps:  []uint64{data.Timestamps[i]},
-					SegmentIDs:  []int64{segmentID},
-					RowCount:    1,
-				})
+				partitionID := data.PartitionID
+				if _, ok := unmatchedByPartition[partitionID]; !ok {
+					unmatchedByPartition[partitionID] = &DeleteData{
+						PartitionID: partitionID,
+						PrimaryKeys: make([]storage.PrimaryKey, 0),
+						Timestamps:  make([]uint64, 0),
+						RowCount:    0,
+					}
+				}
+
+				unmatchedByPartition[partitionID].PrimaryKeys = append(unmatchedByPartition[partitionID].PrimaryKeys, pk)
+				unmatchedByPartition[partitionID].Timestamps = append(unmatchedByPartition[partitionID].Timestamps, data.Timestamps[i])
+				unmatchedByPartition[partitionID].RowCount++
 				continue
 			}
 
-			if _, ok := segmentToDeleteData[segmentID]; !ok {
-				segmentToDeleteData[segmentID] = DeleteData{
-					PartitionID: data.PartitionID,
-				}
-			}
-
-			delData := segmentToDeleteData[segmentID]
-			delData.PrimaryKeys = append(delData.PrimaryKeys, pk)
-			delData.Timestamps = append(delData.Timestamps, data.Timestamps[i])
-			delData.SegmentIDs = append(delData.SegmentIDs, segmentID)
-			delData.RowCount++
-			segmentToDeleteData[segmentID] = delData
+			delRecord := segmentToDeleteData[segmentID]
+			delRecord.PrimaryKeys = append(delRecord.PrimaryKeys, pk)
+			delRecord.Timestamps = append(delRecord.Timestamps, data.Timestamps[i])
+			delRecord.RowCount++
+			segmentToDeleteData[segmentID] = delRecord
 		}
 	}
+
+	unmatchedDeleteData := make([]*DeleteData, 0)
+	for _, unmatchedData := range unmatchedByPartition {
+		unmatchedDeleteData = append(unmatchedDeleteData, unmatchedData)
+	}
+
+	totalMatchedRows := int64(0)
+	for _, data := range segmentToDeleteData {
+		totalMatchedRows += data.RowCount
+	}
+
+	totalUnmatchedRows := int64(0)
+	for _, data := range unmatchedDeleteData {
+		totalUnmatchedRows += data.RowCount
+	}
+
+	totalInputRows := int64(0)
+	for _, data := range deleteData {
+		totalInputRows += data.RowCount
+	}
+
+	log.Info("forward streaming deletion statistics",
+		zap.Int64("totalInputRows", totalInputRows),
+		zap.Int64("totalMatchedRows", totalMatchedRows),
+		zap.Int64("totalUnmatchedRows", totalUnmatchedRows),
+		zap.Int64("totalOutputRows", totalMatchedRows+totalUnmatchedRows),
+		zap.Bool("dataIntegrity", totalInputRows == totalMatchedRows+totalUnmatchedRows))
+
 	log.Info("forward streaming deletion segmentToDeleteData", zap.Int("segmentToDeleteData", len(segmentToDeleteData)))
 	if len(unmatchedDeleteData) > 0 {
 		log.Info("forward streaming deletion unmatched delete data", zap.Int("unmatchedDeleteData", len(unmatchedDeleteData)))
@@ -332,7 +350,6 @@ func (sd *shardDelegator) forwardStreamingBySegmentIds(ctx context.Context, dele
 	bfCost := time.Since(start)
 
 	offlineSegments := typeutil.NewConcurrentSet[int64]()
-	sealed, growing, version = sd.distribution.PinOnlineSegments()
 
 	start = time.Now()
 	eg, ctx := errgroup.WithContext(context.Background())
