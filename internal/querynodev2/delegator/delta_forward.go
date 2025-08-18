@@ -76,7 +76,7 @@ func (sd *shardDelegator) forwardStreamingDeletion(ctx context.Context, deleteDa
 	// need some experimental data to support this policy
 	switch policy := paramtable.Get().QueryNodeCfg.StreamingDeltaForwardPolicy.GetValue(); policy {
 	case ForwardPolicyDefault, StreamingForwardPolicyBF:
-		sd.forwardStreamingByBF(ctx, deleteData)
+		sd.forwardStreamingDirect(ctx, deleteData)
 	case StreamingForwardPolicyDirect:
 		// forward streaming deletion without bf filtering
 		sd.forwardStreamingDirect(ctx, deleteData)
