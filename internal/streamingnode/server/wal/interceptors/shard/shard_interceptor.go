@@ -174,25 +174,24 @@ func (impl *shardInterceptor) handleInsertMessage(ctx context.Context, msg messa
 	body, _ := insertMsg.Body()
 	var pks []storage.PrimaryKey
 	if resource.Resource().PrimaryIndexManager() != nil {
-		var err error
-		pks, err = resource.Resource().PrimaryIndexManager().ExtractPrimaryKeyColumn(insertMsg)
-		if err == nil {
-			duplicateKeys, segmentIDs := resource.Resource().PrimaryIndexManager().CheckDuplicatePrimaryKeys(body.GetShardName(), pks)
-			if duplicateKeys != nil {
-				switch duplicateKeys.GetIdField().(type) {
-				case *schemapb.IDs_IntId:
-					if len(duplicateKeys.GetIntId().GetData()) > 0 {
-						header.DeletePrimaryKeys = duplicateKeys
-						header.SegmentIds = segmentIDs
-					}
-				case *schemapb.IDs_StrId:
-					if len(duplicateKeys.GetStrId().GetData()) > 0 {
-						header.DeletePrimaryKeys = duplicateKeys
-						header.SegmentIds = segmentIDs
-					}
-				}
-			}
-		}
+		pks, _ = resource.Resource().PrimaryIndexManager().ExtractPrimaryKeyColumn(insertMsg)
+		// if err == nil {
+		// 	duplicateKeys, segmentIDs := resource.Resource().PrimaryIndexManager().CheckDuplicatePrimaryKeys(body.GetShardName(), pks)
+		// 	if duplicateKeys != nil {
+		// 		switch duplicateKeys.GetIdField().(type) {
+		// 		case *schemapb.IDs_IntId:
+		// 			if len(duplicateKeys.GetIntId().GetData()) > 0 {
+		// 				header.DeletePrimaryKeys = duplicateKeys
+		// 				header.SegmentIds = segmentIDs
+		// 			}
+		// 		case *schemapb.IDs_StrId:
+		// 			if len(duplicateKeys.GetStrId().GetData()) > 0 {
+		// 				header.DeletePrimaryKeys = duplicateKeys
+		// 				header.SegmentIds = segmentIDs
+		// 			}
+		// 		}
+		// 	}
+		// }
 	}
 
 	// Assign segment for insert message.

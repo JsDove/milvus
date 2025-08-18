@@ -331,7 +331,7 @@ var (
 	DataNodeBuildPrimaryKeyStatsLatency = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: milvusNamespace,
-			Subsystem: typeutil.DataNodeRole,
+			Subsystem: typeutil.IndexNodeRole,
 			Name:      "task_build_primary_key_stats_latency",
 			Help:      "latency of building primary key stats for vchannel",
 			Buckets:   indexBucket,
