@@ -76,7 +76,7 @@ func (sd *shardDelegator) forwardStreamingDeletion(ctx context.Context, deleteDa
 	// need some experimental data to support this policy
 	switch policy := paramtable.Get().QueryNodeCfg.StreamingDeltaForwardPolicy.GetValue(); policy {
 	case ForwardPolicyDefault, StreamingForwardPolicyBF:
-		sd.forwardStreamingDirect(ctx, deleteData)
+		sd.forwardStreamingBySegmentIds(ctx, deleteData)
 	case StreamingForwardPolicyDirect:
 		// forward streaming deletion without bf filtering
 		sd.forwardStreamingDirect(ctx, deleteData)
@@ -345,7 +345,7 @@ func (sd *shardDelegator) forwardStreamingBySegmentIds(ctx context.Context, dele
 	log.Info("forward streaming deletion segmentToDeleteData", zap.Int("segmentToDeleteData", len(segmentToDeleteData)))
 	if len(unmatchedDeleteData) > 0 {
 		log.Info("forward streaming deletion unmatched delete data", zap.Int("unmatchedDeleteData", len(unmatchedDeleteData)))
-		sd.forwardStreamingByBF(ctx, unmatchedDeleteData)
+		sd.forwardStreamingDirect(ctx, unmatchedDeleteData)
 	}
 
 	bfCost := time.Since(start)
@@ -404,63 +404,6 @@ func (sd *shardDelegator) forwardStreamingBySegmentIds(ctx context.Context, dele
 
 	metrics.QueryNodeApplyBFCost.WithLabelValues("ProcessDelete", fmt.Sprint(paramtable.GetNodeID())).Observe(float64(bfCost.Milliseconds()))
 	metrics.QueryNodeForwardDeleteCost.WithLabelValues("ProcessDelete", fmt.Sprint(paramtable.GetNodeID())).Observe(float64(forwardDeleteCost.Milliseconds()))
-}
-
-func (sd *shardDelegator) processUnmatchedDeleteData(ctx context.Context, deleteData []*DeleteData, sealed []SnapshotItem, growing []SegmentEntry) {
-	// group by partition id
-	groups := lo.GroupBy(deleteData, func(delData *DeleteData) int64 {
-		return delData.PartitionID
-	})
-
-	offlineSegments := typeutil.NewConcurrentSet[int64]()
-	eg, ctx := errgroup.WithContext(ctx)
-
-	for _, group := range groups {
-		group := group
-		eg.Go(func() error {
-			for _, entry := range sealed {
-				entry := entry
-				worker, err := sd.workerManager.GetWorker(ctx, entry.NodeID)
-				if err != nil {
-					log.Warn("failed to get worker",
-						zap.Int64("nodeID", entry.NodeID),
-						zap.Error(err),
-					)
-					// skip if node down
-					// delete will be processed after loaded again
-					continue
-				}
-				// forward to non level0 segment only
-				segments := lo.Filter(entry.Segments, func(segmentEntry SegmentEntry, _ int) bool {
-					return segmentEntry.Level != datapb.SegmentLevel_L0
-				})
-
-				eg.Go(func() error {
-					offlineSegments.Upsert(sd.applyDeleteBatch(ctx, entry.NodeID, worker, group, segments, querypb.DataScope_Historical)...)
-					return nil
-				})
-			}
-
-			if len(growing) > 0 {
-				worker, err := sd.workerManager.GetWorker(ctx, paramtable.GetNodeID())
-				if err != nil {
-					log.Error("failed to get worker(local)",
-						zap.Int64("nodeID", paramtable.GetNodeID()),
-						zap.Error(err),
-					)
-					// panic here, local worker shall not have error
-					panic(err)
-				}
-				eg.Go(func() error {
-					offlineSegments.Upsert(sd.applyDeleteBatch(ctx, paramtable.GetNodeID(), worker, group, growing, querypb.DataScope_Streaming)...)
-					return nil
-				})
-			}
-			return nil
-		})
-	}
-	// not error return in apply delete
-	_ = eg.Wait()
 }
 
 func (sd *shardDelegator) forwardStreamingDirect(ctx context.Context, deleteData []*DeleteData) {
@@ -564,7 +507,7 @@ func (sd *shardDelegator) applyDeleteBatch(ctx context.Context,
 			return entry.SegmentID
 		})
 		future := pool.Submit(func() (struct{}, error) {
-			log.Debug("delegator plan to applyDelete via worker")
+			log.Debug("delegator plan to applyDelete via worker", zap.Int("forwardRowCount", len(delData.PrimaryKeys)))
 			err := retry.Handle(ctx, func() (bool, error) {
 				if sd.Stopped() {
 					return false, merr.WrapErrChannelNotAvailable(sd.vchannelName, "channel is unsubscribing")

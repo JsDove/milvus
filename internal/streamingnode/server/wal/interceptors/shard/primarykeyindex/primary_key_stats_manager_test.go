@@ -18,7 +18,7 @@ func TestCheckPrimaryKeyExists(t *testing.T) {
 
 	t.Run("check_int64_pk_exists", func(t *testing.T) {
 		pk := storage.NewInt64PrimaryKey(12345)
-		manager.UpdatePrimaryKey("test", segmentID, pk)
+		manager.UpdateBloomFilterFromPrimaryKeys("test", []storage.PrimaryKey{pk}, segmentID)
 
 		manager.CheckDuplicatePrimaryKeys("test", []storage.PrimaryKey{pk})
 	})
@@ -32,7 +32,7 @@ func TestCheckPrimaryKeyExists(t *testing.T) {
 		stats := manager.createSegmentStats("test", 2, 100, int64(schemapb.DataType_VarChar))
 		assert.NotNil(t, stats)
 		pk := storage.NewVarCharPrimaryKey("test_string")
-		manager.UpdatePrimaryKey("test", 2, pk)
+		manager.UpdateBloomFilterFromPrimaryKeys("test", []storage.PrimaryKey{pk}, 2)
 
 		manager.CheckDuplicatePrimaryKeys("test", []storage.PrimaryKey{pk})
 	})
@@ -53,7 +53,7 @@ func TestMemoryUsageWith10kKeys(t *testing.T) {
 	const numKeys = 10000
 	for i := 0; i < numKeys; i++ {
 		pk := storage.NewInt64PrimaryKey(int64(i))
-		manager.UpdatePrimaryKey("test", segmentID, pk)
+		manager.UpdateBloomFilterFromPrimaryKeys("test", []storage.PrimaryKey{pk}, segmentID)
 	}
 
 	for i := 0; i < numKeys; i++ {
@@ -79,7 +79,7 @@ func TestMemoryUsageWith10kVarcharKeys(t *testing.T) {
 	const numKeys = 10000
 	for i := 0; i < numKeys; i++ {
 		pk := storage.NewVarCharPrimaryKey(fmt.Sprintf("key_%d", i))
-		manager.UpdatePrimaryKey("test", segmentID, pk)
+		manager.UpdateBloomFilterFromPrimaryKeys("test", []storage.PrimaryKey{pk}, segmentID)
 	}
 
 	for i := 0; i < numKeys; i++ {
